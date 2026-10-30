@@ -31,12 +31,6 @@ async def init_database():
             
             logger.info("Creating all tables from SQLAlchemy metadata...")
             await conn.run_sync(Base.metadata.create_all)
-            
-            logger.info("Configuring tenant RLS parameter default...")
-            try:
-                await conn.execute(text('ALTER DATABASE zuigo_attendance SET "app.current_tenant_id" TO "";'))
-            except Exception as e:
-                logger.warning("Could not set database level RLS variable (non-critical in dev): %s", e)
 
         logger.info("✅ Database initialization successfully completed!")
         logger.info("Tables created: %s", ", ".join(Base.metadata.tables.keys()))

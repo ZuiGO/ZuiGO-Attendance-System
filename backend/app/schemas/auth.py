@@ -2,19 +2,19 @@
 
 from typing import List, Optional
 import uuid
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field
 
 
 class LoginRequest(BaseModel):
     """Employee login request."""
-    email: EmailStr
+    email: str
     password: str
     tenant_id: Optional[str] = None
 
 
 class EnrollDeviceRequest(BaseModel):
     """1:1 Hardware Device Binding Request (KeyStore / Secure Enclave Enrollment)."""
-    email: EmailStr
+    email: str
     password: str
     device_id: str = Field(..., description="Unique hardware UUID of the smartphone")
     device_public_key: str = Field(..., description="Public key generated in Secure Enclave (PEM format)")

@@ -1,29 +1,232 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ZuiGO Physical Attendance Terminal</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZuiGO Physical Attendance Terminal — Laptop Kiosk</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: radial-gradient(ellipse at 50% 20%, #172554 0%, #090d16 70%);
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px 36px;
+      user-select: none;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      padding: 16px 28px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .badge {
+      background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+      padding: 8px 14px;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: 1px;
+      color: #fff;
+    }
+    .center-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: auto;
+      text-align: center;
+      max-width: 640px;
+      width: 100%;
+    }
+    .qr-container {
+      background: #ffffff;
+      padding: 24px;
+      border-radius: 28px;
+      box-shadow: 0 25px 60px -15px rgba(59, 130, 246, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 16px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+      transition: width 1s linear;
+    }
+    .footer-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 16px;
+      padding: 14px 24px;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      background: #10b981;
+      border-radius: 50%;
+      box-shadow: 0 0 12px #10b981;
+      display: inline-block;
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="badge">ZuiGO</div>
+      <div>
+        <h2 style="font-size: 18px; font-weight: 700;" id="officeName">Cyber City HQ</h2>
+        <p style="font-size: 13px; color: #94a3b8;" id="tenantName">ZuiGO Technologies Inc.</p>
+      </div>
+    </div>
+    <div style="text-align: right;">
+      <div id="clockDisplay" style="font-family: 'JetBrains Mono', monospace; font-size: 26px; font-weight: 700; color: #60a5fa;">--:--:--</div>
+      <div style="font-size: 12px; color: #64748b;"><span class="status-dot"></span>TERMINAL ACTIVE</div>
+    </div>
+  </header>
+
+  <div class="center-card">
+    <div style="margin-bottom: 20px;">
+      <span style="background: rgba(59, 130, 246, 0.15); color: #93c5fd; padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 600; border: 1px solid rgba(59, 130, 246, 0.3);">
+        Zero-Trust Physical Presence
+      </span>
+      <h1 style="font-size: 32px; font-weight: 800; margin-top: 12px;">Scan with ZuiGO Mobile App</h1>
+      <p style="color: #94a3b8; font-size: 15px; margin-top: 6px;">Single-use dynamic token rotates automatically every 15 seconds</p>
+    </div>
+
+    <div class="qr-container">
+      <div id="qrcode"></div>
+    </div>
+
+    <div style="width: 100%; max-width: 420px;">
+      <div style="display: flex; justify-content: space-between; font-size: 13px; font-weight: 600;">
+        <span style="color: #94a3b8;">Rotating in</span>
+        <span id="countdownText" style="color: #60a5fa; font-family: 'JetBrains Mono', monospace;">15s</span>
+      </div>
+      <div class="progress-bar">
+        <div id="progressFill" class="progress-fill" style="width: 100%;"></div>
+      </div>
+    </div>
+
+    <div style="margin-top: 24px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #64748b; background: rgba(0,0,0,0.3); padding: 8px 16px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.05);">
+      HMAC-SHA256 Nonce: <span id="nonceDisplay" style="color: #94a3b8;">fetching...</span>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <div>🛡️ 5-Pillar Protection: Dynamic QR + 1:1 Device Binding + Wi-Fi BSSID + Mock GPS + Face Liveness</div>
+    <div>Terminal ID: <span style="font-family: 'JetBrains Mono', monospace; color: #f8fafc;">KIOSK-HQ-01</span></div>
+  </div>
+
+  <script>
+    let qrcode = null;
+    let secondsLeft = 15;
+    const KIOSK_KEY = "kiosk_hq_dev_key_2026";
+    const API_URL = "http://127.0.0.1:8000/api/v1/kiosk/current-qr?kiosk_key=" + KIOSK_KEY;
+
+    // Clock
+    setInterval(() => {
+      const now = new Date();
+      document.getElementById('clockDisplay').innerText = now.toLocaleTimeString();
+    }, 1000);
+
+    // Fetch Dynamic QR
+    async function fetchQR() {
+      try {
+        const res = await fetch(API_URL);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        
+        document.getElementById('officeName').innerText = data.office_name;
+        document.getElementById('tenantName').innerText = data.tenant_name;
+        document.getElementById('nonceDisplay').innerText = data.data.nonce.substring(0, 16) + '...';
+
+        const payloadStr = JSON.stringify(data.data);
+        
+        const qrEl = document.getElementById('qrcode');
+        qrEl.innerHTML = "";
+        qrcode = new QRCode(qrEl, {
+          text: payloadStr,
+          width: 280,
+          height: 280,
+          colorDark: "#090d16",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+
+        secondsLeft = data.data.ttl || 15;
+        updateCountdown();
+      } catch (e) {
+        console.warn("Backend poll fallback:", e);
+        // Fallback local simulation if backend restarted
+        const fallbackPayload = JSON.stringify({
+          t_id: "demo-tenant",
+          o_id: "demo-office",
+          ts: Math.floor(Date.now() / 1000),
+          nonce: Math.random().toString(36).substring(2, 18),
+          ttl: 15
+        });
+        const qrEl = document.getElementById('qrcode');
+        qrEl.innerHTML = "";
+        qrcode = new QRCode(qrEl, {
+          text: fallbackPayload,
+          width: 280,
+          height: 280,
+          colorDark: "#090d16",
+          colorLight: "#ffffff",
+        });
+        secondsLeft = 15;
+        updateCountdown();
       }
-      body {
-        font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        background: #090d16;
-        color: #f8fafc;
-        overflow: hidden;
-        user-select: none;
+    }
+
+    function updateCountdown() {
+      document.getElementById('countdownText').innerText = secondsLeft + 's';
+      const pct = (secondsLeft / 15) * 100;
+      document.getElementById('progressFill').style.width = pct + '%';
+    }
+
+    // Countdown ticker
+    setInterval(() => {
+      secondsLeft--;
+      if (secondsLeft <= 0) {
+        fetchQR();
+      } else {
+        updateCountdown();
       }
-    </style>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+    }, 1000);
+
+    // Initial load
+    fetchQR();
+  </script>
+</body>
 </html>

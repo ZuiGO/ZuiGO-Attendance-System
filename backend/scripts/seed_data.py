@@ -333,17 +333,17 @@ async def seed():
                 id=uuid.uuid4(),
                 tenant_id=tenant_id,
                 project_id=project.id,
-                name="Biomedical Sensor Calibration",
-                code="CAL-01",
-                is_active=True,
+                title="Biomedical Sensor Calibration",
+                description="Calibrate biometric and monitoring hardware at hospital site",
+                status="TODO",
             )
             t2 = Task(
                 id=uuid.uuid4(),
                 tenant_id=tenant_id,
                 project_id=project.id,
-                name="Client OTP Signoff & Report",
-                code="SGN-02",
-                is_active=True,
+                title="Client OTP Signoff & Report",
+                description="Interview hospital administrator and verify OTP signoff",
+                status="TODO",
             )
             session.add_all([t1, t2])
             await session.flush()
