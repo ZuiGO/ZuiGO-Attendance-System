@@ -211,6 +211,117 @@ CREATE INDEX idx_time_entries_employee_time ON task_time_entries(tenant_id, empl
 CREATE INDEX idx_time_entries_task ON task_time_entries(tenant_id, task_id);
 ```
 
+### 2.5 Field-Visit & Route Tracking (Proof of Physical Visit - PoPV)
+
+```sql
+-- 9. Client Destinations (Hospitals, Dealers, Distributors, Customers)
+CREATE TABLE client_destinations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    client_type VARCHAR(50) NOT NULL DEFAULT 'CUSTOMER', -- 'HOSPITAL', 'DEALER', 'DISTRIBUTOR', 'CUSTOMER'
+    contact_person VARCHAR(150),
+    contact_phone VARCHAR(30),
+    address TEXT,
+    coordinates GEOMETRY(Point, 4326) NOT NULL,
+    geofence_radius_meters INT NOT NULL DEFAULT 75,
+    min_dwell_minutes INT NOT NULL DEFAULT 10, -- Minimum stay required to complete visit
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_destinations_tenant ON client_destinations(tenant_id);
+CREATE INDEX idx_destinations_spatial ON client_destinations USING GIST (coordinates);
+
+-- 10. Field Itineraries (Daily Beat / Route Plan)
+CREATE TABLE field_itineraries (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    assigned_by UUID REFERENCES employees(id),
+    title VARCHAR(200) NOT NULL,
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    status VARCHAR(30) NOT NULL DEFAULT 'PLANNED', -- 'PLANNED', 'IN_PROGRESS', 'COMPLETED', 'PARTIAL'
+    total_planned_stops INT NOT NULL DEFAULT 0,
+    total_completed_stops INT NOT NULL DEFAULT 0,
+    total_travel_distance_km NUMERIC(8, 2) DEFAULT 0.00,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_itineraries_employee_date ON field_itineraries(tenant_id, employee_id, date);
+
+-- 11. Field Visit Stops (Individual Stops on Route)
+CREATE TABLE field_visit_stops (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    itinerary_id UUID NOT NULL REFERENCES field_itineraries(id) ON DELETE CASCADE,
+    destination_id UUID NOT NULL REFERENCES client_destinations(id) ON DELETE CASCADE,
+    sequence_order INT NOT NULL DEFAULT 1,
+    planned_time TIMESTAMPTZ,
+    
+    -- Verification Timestamps & Metrics
+    actual_arrival_time TIMESTAMPTZ,
+    actual_departure_time TIMESTAMPTZ,
+    dwell_time_seconds INT GENERATED ALWAYS AS (
+        CASE WHEN actual_departure_time IS NOT NULL 
+        THEN EXTRACT(EPOCH FROM (actual_departure_time - actual_arrival_time))::INT 
+        ELSE NULL END
+    ) STORED,
+    
+    status VARCHAR(30) NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'ARRIVED', 'COMPLETED', 'SKIPPED', 'CANCELLED'
+    
+    -- Presence Verification
+    check_in_location GEOMETRY(Point, 4326),
+    check_in_distance_meters NUMERIC(8, 2), -- Distance from target coordinates upon check-in
+    check_out_location GEOMETRY(Point, 4326),
+    is_geofence_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    is_dwell_time_satisfied BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    skip_reason TEXT,
+    meeting_notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_visit_stops_itinerary ON field_visit_stops(itinerary_id, sequence_order);
+
+-- 12. Field Visit Proofs (Tamper-Proof Audit Artifacts)
+CREATE TABLE field_visit_proofs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    visit_stop_id UUID NOT NULL REFERENCES field_visit_stops(id) ON DELETE CASCADE,
+    proof_type VARCHAR(50) NOT NULL, -- 'LIVE_CAMERA_PHOTO', 'CUSTOMER_SIGNATURE', 'CLIENT_OTP'
+    file_url TEXT NOT NULL,
+    captured_coordinates GEOMETRY(Point, 4326) NOT NULL,
+    captured_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    metadata JSONB NOT NULL DEFAULT '{}' -- Includes EXIF verification, signer name, etc.
+);
+
+CREATE INDEX idx_visit_proofs_stop ON field_visit_proofs(visit_stop_id);
+
+-- 13. Location Breadcrumbs (Continuous Route & Mileage Telemetry)
+CREATE TABLE location_breadcrumbs (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    itinerary_id UUID REFERENCES field_itineraries(id) ON DELETE SET NULL,
+    recorded_at TIMESTAMPTZ NOT NULL,
+    coordinates GEOMETRY(Point, 4326) NOT NULL,
+    accuracy_meters NUMERIC(6, 2),
+    speed_kmh NUMERIC(6, 2),
+    battery_level INT,
+    is_mock BOOLEAN NOT NULL DEFAULT FALSE,
+    activity_type VARCHAR(30) DEFAULT 'UNKNOWN', -- 'STATIONARY', 'IN_VEHICLE', 'WALKING'
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_breadcrumbs_emp_time ON location_breadcrumbs(tenant_id, employee_id, recorded_at);
+CREATE INDEX idx_breadcrumbs_spatial ON location_breadcrumbs USING GIST (coordinates);
+```
+
 ---
 
 ## 3. Row-Level Security (RLS) Setup
@@ -224,6 +335,11 @@ ALTER TABLE attendance_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE task_time_entries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_destinations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE field_itineraries ENABLE ROW LEVEL SECURITY;
+ALTER TABLE field_visit_stops ENABLE ROW LEVEL SECURITY;
+ALTER TABLE field_visit_proofs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE location_breadcrumbs ENABLE ROW LEVEL SECURITY;
 
 -- Create Tenant Isolation Policies
 CREATE POLICY tenant_isolation_offices ON offices
@@ -245,5 +361,20 @@ CREATE POLICY tenant_isolation_tasks ON tasks
     USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
 
 CREATE POLICY tenant_isolation_time_entries ON task_time_entries
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_destinations ON client_destinations
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_itineraries ON field_itineraries
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_stops ON field_visit_stops
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_proofs ON field_visit_proofs
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_breadcrumbs ON location_breadcrumbs
     USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
 ```

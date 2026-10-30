@@ -80,6 +80,17 @@ To eliminate **buddy punching** and **remote proxy check-ins** without dedicated
 
 ---
 
+## 🚗 Verifiable Field-Visit & Route Tracking (Proof of Physical Visit - PoPV)
+
+For employees visiting external clients, hospitals, dealers, or distributors:
+* **Destination Geofencing (PostGIS):** Client locations configured with tight geofence radiuses (50m–100m).
+* **Enforced Dwell Time (Anti-Drive-By):** Employees must physically remain at the destination for a minimum required duration (e.g. 10–20 mins) before the visit can be marked as completed.
+* **Tamper-Proof Live Photo Proof:** Direct camera capture with cryptographic watermarking (time, GPS, client name, server hash). Gallery uploads are strictly forbidden.
+* **Client Counter-Verification:** Digital on-screen signature or rapid SMS/WhatsApp OTP counter-verification with the customer/dealer.
+* **Planned vs. Actual Itinerary Audit:** Continuous background breadcrumbs to detect unauthorized detours, track vehicle travel distance (mileage audit), and compare planned beats against actual visits.
+
+---
+
 ## 🗄️ Multi-Tenancy Architecture
 
 * **Database Strategy:** Shared Database with PostgreSQL **Row-Level Security (RLS)**.

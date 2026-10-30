@@ -63,7 +63,25 @@ This document outlines the step-by-step phased execution plan. Development will 
 
 ---
 
-## 📅 Phase 5: Employer Dashboard & Compliance Analytics
+## 📅 Phase 5: Verifiable Field-Visit & Route Tracking (PoPV)
+* **Milestone 5.1: Destination Geofencing & Beat Planning Engine (Backend)**
+  * CRUD for Client Destinations (Hospitals, Dealers, Distributors, Customers) with PostGIS Point geometries.
+  * Daily Itinerary / Beat generator and assignment engine.
+  * Dwell-time enforcement rules (minimum stay validation) and arrival/departure state tracking.
+* **Milestone 5.2: In-App Field Visit Verification & Telemetry (React Native)**
+  * Field mode dashboard: Today's assigned stops ordered by route sequence.
+  * Geofence arrival check-in with live distance-to-target indicator.
+  * In-App Live Camera capture with anti-tamper watermark (time, GPS, client name, server hash).
+  * Digital customer counter-signature canvas or rapid OTP verification.
+  * Background location breadcrumb collector with stationary battery saver.
+* **Milestone 5.3: Manager Planned vs. Actual Route Audit**
+  * Interactive map visualization: Planned stops vs. actual visited stops.
+  * Route breadcrumb playback with travel speed and dwell time per location.
+  * Exception alerts: Missed visits, unauthorized detours, and drive-bys (arrival without dwell time).
+
+---
+
+## 📅 Phase 6: Employer Dashboard & Compliance Analytics
 * **Milestone 5.1: Real-Time Presence Board**
   * Live list of present employees, arrival times, and currently active tasks.
   * Live office attendance percentage.
@@ -84,3 +102,6 @@ This document outlines the step-by-step phased execution plan. Development will 
 | **TC-04** | Employee scans QR but points camera at printed photo of their face. | Rejected: `LIVENESS_FAILED` (no micro-facial movement / 3D depth). |
 | **TC-05** | Employee attempts to start a task timer while not clocked in. | Rejected: `403 Forbidden` (`ATTENDANCE_REQUIRED`). |
 | **TC-06** | Tenant A attempts to query Tenant B's employee list or timesheets. | PostgreSQL RLS returns empty set (Zero data leakage). |
+| **TC-07** | Field employee attempts check-in at hospital while 300m away on highway. | Rejected: `403 Forbidden` (`OUTSIDE_GEOFENCE`). |
+| **TC-08** | Field employee attempts "Complete Visit" 2 minutes after arriving (15 min min dwell). | Rejected: `400 Bad Request` (`DWELL_TIME_NOT_MET`). |
+| **TC-09** | Field employee attempts to upload a stock photo from device gallery. | Blocked: App forces direct camera capture only with cryptographic watermark. |

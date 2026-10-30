@@ -220,3 +220,139 @@ Base Path: `/api/v1`
     ]
   }
   ```
+
+---
+
+## 6. Verifiable Field-Visit & Route Tracking (Proof of Physical Visit - PoPV)
+
+### 6.1 Get Assigned Field Itinerary for Today
+* **Endpoint:** `GET /api/v1/field/itineraries/today`
+* **Response (200 OK):**
+  ```json
+  {
+    "itinerary_id": "8c12a734-9102-4f11-b021-9316c0228bb4",
+    "title": "North Zone Hospital & Dealer Coverage",
+    "date": "2026-10-30",
+    "total_stops": 12,
+    "completed_stops": 4,
+    "stops": [
+      {
+        "stop_id": "f5b2c918-1029-411a-82bc-90184b238e11",
+        "sequence_order": 5,
+        "destination_name": "Apollo City Hospital",
+        "client_type": "HOSPITAL",
+        "contact_person": "Dr. Sharma (Medical Superintendent)",
+        "contact_phone": "+91-9876543210",
+        "coordinates": { "latitude": 28.5412, "longitude": 77.3891 },
+        "geofence_radius_meters": 75,
+        "min_dwell_minutes": 15,
+        "status": "PENDING"
+      }
+    ]
+  }
+  ```
+
+### 6.2 Check-In / Arrive at Field Stop (Geofence Arrival)
+* **Endpoint:** `POST /api/v1/field/visits/{stop_id}/arrive`
+* **Request Body:**
+  ```json
+  {
+    "location": {
+      "latitude": 28.541215,
+      "longitude": 77.389095,
+      "accuracy": 12.5,
+      "is_mock": false
+    }
+  }
+  ```
+* **Response (200 OK):**
+  ```json
+  {
+    "stop_id": "f5b2c918-1029-411a-82bc-90184b238e11",
+    "status": "ARRIVED",
+    "actual_arrival_time": "2026-10-30T10:30:15Z",
+    "distance_from_target_meters": 18.4,
+    "min_dwell_minutes": 15,
+    "dwell_timer_ends_at": "2026-10-30T10:45:15Z",
+    "message": "Arrival verified inside Apollo City Hospital geofence. Dwell timer started."
+  }
+  ```
+* **Error Response:**
+  * `403 Forbidden` — `OUTSIDE_GEOFENCE`: Employee is 420 meters away from target destination.
+
+### 6.3 Complete Field Visit (Proof of Physical Visit Submission)
+* **Endpoint:** `POST /api/v1/field/visits/{stop_id}/complete`
+* **Request Body:**
+  ```json
+  {
+    "location": {
+      "latitude": 28.541220,
+      "longitude": 77.389110,
+      "is_mock": false
+    },
+    "proof": {
+      "proof_type": "LIVE_CAMERA_PHOTO",
+      "photo_base64_or_upload_id": "upload_9f81a7b2c...",
+      "watermark_hash": "e9c12b77a0...",
+      "customer_signature_svg": "data:image/svg+xml;base64,...",
+      "client_contact_otp": "4921"
+    },
+    "meeting_notes": "Met Dr. Sharma; demoed the diagnostic kit; requested follow-up next Friday."
+  }
+  ```
+* **Response (200 OK):**
+  ```json
+  {
+    "stop_id": "f5b2c918-1029-411a-82bc-90184b238e11",
+    "status": "COMPLETED",
+    "dwell_time_seconds": 1040,
+    "dwell_time_formatted": "17 mins 20 secs",
+    "is_dwell_time_satisfied": true,
+    "proof_recorded": true,
+    "next_suggested_stop": "Metro Pharma Distributor (1.8 km away)"
+  }
+  ```
+* **Error Response:**
+  * `400 Bad Request` — `DWELL_TIME_NOT_MET`: Employee only stayed 3 minutes (minimum 15 minutes required).
+
+### 6.4 Upload Background Location Telemetry (Breadcrumbs Batch)
+* **Endpoint:** `POST /api/v1/field/telemetry/breadcrumbs`
+* **Request Body:**
+  ```json
+  {
+    "itinerary_id": "8c12a734-9102-4f11-b021-9316c0228bb4",
+    "points": [
+      {
+        "timestamp": "2026-10-30T10:15:00Z",
+        "latitude": 28.5371,
+        "longitude": 77.3850,
+        "speed_kmh": 34.2,
+        "accuracy": 8.0,
+        "battery_level": 84,
+        "is_mock": false,
+        "activity_type": "IN_VEHICLE"
+      }
+    ]
+  }
+  ```
+* **Response (200 OK):** `{"processed_points": 1, "accumulated_distance_km": 14.8}`
+
+### 6.5 Manager Audit: Planned vs. Actual Itinerary Map
+* **Endpoint:** `GET /api/v1/field/admin/itineraries/{itinerary_id}/audit`
+* **Response (200 OK):**
+  ```json
+  {
+    "employee_name": "Rajesh Kumar",
+    "itinerary_title": "North Zone Hospital & Dealer Coverage",
+    "total_planned": 12,
+    "total_completed": 10,
+    "total_skipped": 2,
+    "total_travel_distance_km": 42.6,
+    "total_dwell_hours": 3.8,
+    "unauthorized_detour_detected": false,
+    "route_comparison": {
+      "planned_sequence": ["Apollo Hospital", "Metro Pharma", "..."],
+      "actual_sequence": ["Apollo Hospital", "Metro Pharma", "..."]
+    }
+  }
+  ```

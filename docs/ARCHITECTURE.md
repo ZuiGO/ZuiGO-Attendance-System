@@ -131,7 +131,52 @@ stateDiagram-v2
 
 ---
 
-## 4. Multi-Tenant Architecture & Data Isolation
+## 4. Verifiable Field-Visit & Route Tracking Subsystem (PoPV Protocol)
+
+For staff dispatched to external destinations (e.g., 50+ hospitals, dealers, distributors, customer sites, or field service locations), physical presence cannot rely on an office Wi-Fi or kiosk. Instead, the system uses the **Proof of Physical Visit (PoPV)** protocol:
+
+```mermaid
+flowchart TD
+    A[Manager assigns Itinerary / Beat of 10-50 destinations] --> B[Employee starts Field Shift]
+    B --> C[Background Location Breadcrumbs Engine Activated]
+    C --> D[Employee arrives at Target Destination]
+    D --> E{PostGIS ST_DWithin Geofence Check < 75m}
+    E -- Out of Radius --> X1[Deny Check-In: Not at Destination]
+    E -- Within Radius --> F[Check-In Recorded: Dwell Timer Starts]
+    F --> G{Mandatory Dwell Time Met? e.g., 10-15 mins}
+    G -- Leaves prematurely --> X2[Flag Exception: Drive-By / Incomplete Visit]
+    G -- Dwell Time Satisfied --> H[Capture In-App Live Watermarked Photo Proof]
+    H --> I[Optional: Dealer Digital Signature or OTP]
+    I --> J[Visit Verified & Marked COMPLETED]
+    J --> K[Next Stop Navigation / Actual vs Planned Route Analysis]
+```
+
+### 4.1 The 5 Pillars of Field-Visit Verification
+
+1. **Dynamic PostGIS Destination Geofencing:**
+   * Each customer, hospital, dealer, or distributor has exact GPS coordinates stored as `GEOMETRY(Point, 4326)` with an allowed threshold (typically 50m–100m depending on facility size).
+   * Server validates arrival using `ST_DWithin` spatial calculations.
+
+2. **Enforced Dwell Time Verification (Anti-Drive-By):**
+   * *The Problem:* Employees driving past a location or stopping for 30 seconds at a red light could falsely claim a visit.
+   * *The Solution:* The mobile app starts a **Dwell Timer** upon check-in. The visit cannot be marked "Completed" until the employee remains continuously inside the geofence for the minimum required duration (e.g., 10–20 minutes, configurable per client type).
+
+3. **Tamper-Proof In-App Photo Proof (Watermarked with Crypto Hash):**
+   * Forces direct camera capture inside the app (gallery uploads strictly disabled).
+   * Watermarks the photo with: timestamp, GPS coordinates, destination name, employee name, and server cryptographic hash.
+   * EXIF metadata is cross-validated on the server against the check-in time and PostGIS geofence.
+
+4. **Counter-Verification (Customer Signature / OTP):**
+   * **Digital Signature:** The doctor, dealer, or shop manager signs on the mobile screen upon meeting completion.
+   * **Contact OTP (Optional):** Sends a rapid 4-digit verification code to the registered client/dealer's phone number.
+
+5. **Battery-Optimized Route Breadcrumbs & Deviation Audit:**
+   * Tracks location telemetry in the background using intelligent motion detection (stationary vs. in-transit).
+   * Detects and highlights unauthorized route deviations, prolonged unauthorized stops (>20 mins at non-destination spots), and calculates exact vehicle kilometers for travel allowance auditing.
+
+---
+
+## 5. Multi-Tenant Architecture & Data Isolation
 
 ### 4.1 Tenant Resolution
 Tenants are resolved on every request via FastAPI middleware:
