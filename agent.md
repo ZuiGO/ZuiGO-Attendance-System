@@ -8,12 +8,29 @@
 
 | Field | Value |
 |:---|:---|
-| **Current Phase** | **Complete Full-Stack Platform Built & Tested** (Backend + PostGIS DB + Redis + Kiosk Web + Mobile Expo App + Admin Dashboard + Seeder) |
-| **Status** | 🟢 **ALL TESTS PASSING (39/39 Passed in 6.65s)** |
-| **Last Updated** | 2026-10-30T14:55:00+05:30 |
+| **Current Phase** | **Exhaustive QA Verification & Bug Remediation Complete** (All 5 Pillars + Dwell Time + Anti-Fraud + Admin) |
+| **Status** | 🟢 **ALL TESTS PASSING (50/50 Passed in 6.52s)** |
+| **Last Updated** | 2026-10-30T15:15:00+05:30 |
 | **Branch** | `main` |
 | **Repo** | https://github.com/ZuiGO/ZuiGO-Attendance-System |
-| **Latest Commits** | `d1fba87` (feat: alembic & seeder), `d2f750e` (feat: admin dashboard), `4112d3d` (feat: mobile app) |
+| **Latest Commits** | `5586206` (test: 50/50 passing + QA fixes), `ec3fb01` (docs: continuity), `d1fba87` (feat: alembic & seeder) |
+
+---
+
+## 🐛 Bugs Uncovered & Fixed During Senior QA Audit
+
+1. **SQLAlchemy `NoForeignKeysError` in Model Registry:**
+   - *Bug:* `Office.tenant_id` was defined without `ForeignKey("tenants.id")`, which caused SQLAlchemy's relationship mapper to fail when resolving `Tenant.offices`.
+   - *Fix:* Added `ForeignKey("tenants.id", ondelete="CASCADE")` to `Office.tenant_id` in `backend/app/models/tenant.py`.
+2. **Missing `import math` in Field Visit Service:**
+   - *Bug:* `backend/app/services/field_visit_service.py` invoked `math.ceil` on premature visit completion attempts without importing `math`, which would have caused an unhandled `NameError` crash.
+   - *Fix:* Added `import math` to `backend/app/services/field_visit_service.py`.
+3. **Missing `odometer_distance_km` Property on `TravelLog`:**
+   - *Bug:* `admin_service.py` attempted to read `log.odometer_distance_km`, which was not a direct column on `TravelLog` (`odometer_start_km` and `odometer_end_km` were stored separately).
+   - *Fix:* Added a robust `@property def odometer_distance_km(self)` to `TravelLog` in `backend/app/models/travel.py` that computes the exact difference and rounds to 2 decimals.
+4. **Seed Script Field Name Discrepancies:**
+   - *Bug:* `seed_data.py` referenced outdated field names (`start_odometer_km`, `approval_status`, `shift_date`) and had a duplicate block.
+   - *Fix:* Aligned all keyword arguments with model columns (`odometer_start_km`, `odometer_end_km`, `reimbursement_status`, `distance_discrepancy_pct`).
 
 ---
 
@@ -75,18 +92,11 @@
 ### 7. Database Migrations, Schema Initializer & Demo Seeder (Phase 7)
 - [x] Async Alembic migrations (`backend/alembic/`) with GeoAlchemy2 support.
 - [x] Direct schema initializer (`backend/scripts/init_db.py`).
-- [x] Comprehensive demo seeder (`backend/scripts/seed_data.py`):
-  - Tenant: `ZuiGO Technologies Inc.` (subdomain `zuigo`)
-  - Cyber City HQ Office (PostGIS Point, 50m geofence, authorized Wi-Fi BSSID)
-  - 4 Employees: Admin, Field Engineers, Operations Lead
-  - 4 Major Client Destinations (Apollo City Hospital, Metro Pharma, LifeCare Diagnostics, Fortis)
-  - 3 Fleet Vehicles (Company Car, Personal Bike, Personal Car)
-  - Projects & Tasks with active stopwatches
-  - Sample Travel Shifts (Clean approved trip + 54.8% fraud discrepancy alert trip for employer review testing)
+- [x] Comprehensive demo seeder (`backend/scripts/seed_data.py`).
 
 ---
 
-## 🧪 Automated Test Suite (39/39 PASSED)
+## 🧪 Automated Test Suite (50/50 PASSED)
 
 Run with: `backend\.venv\Scripts\pytest.exe -v backend/tests`
 
@@ -104,7 +114,8 @@ Run with: `backend\.venv\Scripts\pytest.exe -v backend/tests`
 | `test_travel_service.py` | Mileage formulas, odometer discrepancy fraud alert | 4 | 🟢 PASS |
 | `test_admin_service.py` | Live presence board aggregates, policy schemas | 2 | 🟢 PASS |
 | `test_seeder_and_migrations.py`| Base.metadata table registration & script imports | 2 | 🟢 PASS |
-| **Total** | | **39** | 🟢 **100% PASS** |
+| `test_senior_tester_comprehensive.py` | 5-Pillar zero-trust, dwell enforcement, OTP lockout, travel fraud | 11 | 🟢 PASS |
+| **Total** | | **50** | 🟢 **100% PASS** |
 
 ---
 
@@ -124,7 +135,7 @@ ZuiGO Attendance System/
 │   ├── scripts/
 │   │   ├── init_db.py                  # Direct schema creator
 │   │   └── seed_data.py                # Demo multi-tenant data seeder
-│   ├── tests/                          # 39 Pytest automated tests
+│   ├── tests/                          # 50 Pytest automated tests
 │   ├── Dockerfile
 │   └── requirements.txt
 ├── apps/
@@ -142,7 +153,7 @@ ZuiGO Attendance System/
 
 ## 🚀 How to Run & Verify
 
-### 1. Run Automated Backend Tests
+### 1. Run Automated Backend Tests (50 Tests)
 ```powershell
 .\backend\.venv\Scripts\pytest.exe -v backend/tests
 ```
@@ -163,19 +174,18 @@ docker compose up -d
 ```powershell
 .\backend\.venv\Scripts\uvicorn.exe app.main:app --app-dir backend --reload --port 8000
 ```
+- API Docs: `http://localhost:8000/docs`
 
 ### 5. Run Laptop Kiosk Terminal
 ```powershell
 cd apps/kiosk-web
 npm.cmd run dev
-# Opens at http://localhost:5173
 ```
 
 ### 6. Run Employer Admin Dashboard
 ```powershell
 cd apps/admin-web
 npm.cmd run dev
-# Opens at http://localhost:5174
 ```
 
 ### 7. Run React Native Mobile App
