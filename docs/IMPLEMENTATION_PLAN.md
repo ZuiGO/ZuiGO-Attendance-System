@@ -67,12 +67,14 @@ This document outlines the step-by-step phased execution plan. Development will 
 * **Milestone 5.1: Destination Geofencing & Beat Planning Engine (Backend)**
   * CRUD for Client Destinations (Hospitals, Dealers, Distributors, Customers) with PostGIS Point geometries.
   * Daily Itinerary / Beat generator and assignment engine.
-  * Dwell-time enforcement rules (minimum stay validation) and arrival/departure state tracking.
+  * Dwell-time enforcement rules (**default: 30 minutes**, configurable per tenant and overridable per destination) and arrival/departure state tracking.
+  * Client SMS / WhatsApp OTP service integration (via Twilio / MSG91 / WhatsApp Business API).
+  * OTP generation, delivery, expiry (5 min TTL), and verification pipeline with rate limiting (max 3 attempts).
 * **Milestone 5.2: In-App Field Visit Verification & Telemetry (React Native)**
   * Field mode dashboard: Today's assigned stops ordered by route sequence.
   * Geofence arrival check-in with live distance-to-target indicator.
   * In-App Live Camera capture with anti-tamper watermark (time, GPS, client name, server hash).
-  * Digital customer counter-signature canvas or rapid OTP verification.
+  * Client SMS / WhatsApp OTP request and verification UI (masked phone number display, countdown timer, retry handling).
   * Background location breadcrumb collector with stationary battery saver.
 * **Milestone 5.3: Manager Planned vs. Actual Route Audit**
   * Interactive map visualization: Planned stops vs. actual visited stops.
@@ -103,5 +105,7 @@ This document outlines the step-by-step phased execution plan. Development will 
 | **TC-05** | Employee attempts to start a task timer while not clocked in. | Rejected: `403 Forbidden` (`ATTENDANCE_REQUIRED`). |
 | **TC-06** | Tenant A attempts to query Tenant B's employee list or timesheets. | PostgreSQL RLS returns empty set (Zero data leakage). |
 | **TC-07** | Field employee attempts check-in at hospital while 300m away on highway. | Rejected: `403 Forbidden` (`OUTSIDE_GEOFENCE`). |
-| **TC-08** | Field employee attempts "Complete Visit" 2 minutes after arriving (15 min min dwell). | Rejected: `400 Bad Request` (`DWELL_TIME_NOT_MET`). |
+| **TC-08** | Field employee attempts "Complete Visit" 12 minutes after arriving (30 min min dwell). | Rejected: `400 Bad Request` (`DWELL_TIME_NOT_MET`). |
 | **TC-09** | Field employee attempts to upload a stock photo from device gallery. | Blocked: App forces direct camera capture only with cryptographic watermark. |
+| **TC-10** | Field employee enters wrong OTP 3 times trying to guess the code. | Rejected: `429 Too Many Requests` (`OTP_MAX_ATTEMPTS`). |
+| **TC-11** | Field employee enters expired OTP (after 5-minute validity window). | Rejected: `400 Bad Request` (`OTP_EXPIRED`). |

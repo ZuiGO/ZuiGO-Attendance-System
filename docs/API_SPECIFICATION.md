@@ -245,7 +245,8 @@ Base Path: `/api/v1`
         "contact_phone": "+91-9876543210",
         "coordinates": { "latitude": 28.5412, "longitude": 77.3891 },
         "geofence_radius_meters": 75,
-        "min_dwell_minutes": 15,
+        "min_dwell_minutes": 30,
+        "otp_channel": "SMS",
         "status": "PENDING"
       }
     ]
@@ -272,15 +273,36 @@ Base Path: `/api/v1`
     "status": "ARRIVED",
     "actual_arrival_time": "2026-10-30T10:30:15Z",
     "distance_from_target_meters": 18.4,
-    "min_dwell_minutes": 15,
-    "dwell_timer_ends_at": "2026-10-30T10:45:15Z",
+    "min_dwell_minutes": 30,
+    "dwell_timer_ends_at": "2026-10-30T11:00:15Z",
     "message": "Arrival verified inside Apollo City Hospital geofence. Dwell timer started."
   }
   ```
 * **Error Response:**
   * `403 Forbidden` — `OUTSIDE_GEOFENCE`: Employee is 420 meters away from target destination.
 
-### 6.3 Complete Field Visit (Proof of Physical Visit Submission)
+### 6.3 Request Client OTP (SMS / WhatsApp)
+* **Endpoint:** `POST /api/v1/field/visits/{stop_id}/request-otp`
+* **Description:** Sends a 4-digit verification OTP to the client's registered phone via SMS or WhatsApp (channel configured per destination or tenant default).
+* **Request Body:**
+  ```json
+  {
+    "channel": "SMS"
+  }
+  ```
+* **Response (200 OK):**
+  ```json
+  {
+    "otp_id": "a1c2d3e4-5678-90ab-cdef-1234567890ab",
+    "recipient_phone_masked": "+91-98765***10",
+    "channel": "SMS",
+    "expires_in_seconds": 300,
+    "max_attempts": 3,
+    "message": "OTP sent to client contact via SMS."
+  }
+  ```
+
+### 6.4 Complete Field Visit (Proof of Physical Visit Submission)
 * **Endpoint:** `POST /api/v1/field/visits/{stop_id}/complete`
 * **Request Body:**
   ```json
@@ -293,9 +315,11 @@ Base Path: `/api/v1`
     "proof": {
       "proof_type": "LIVE_CAMERA_PHOTO",
       "photo_base64_or_upload_id": "upload_9f81a7b2c...",
-      "watermark_hash": "e9c12b77a0...",
-      "customer_signature_svg": "data:image/svg+xml;base64,...",
-      "client_contact_otp": "4921"
+      "watermark_hash": "e9c12b77a0..."
+    },
+    "client_otp_verification": {
+      "otp_id": "a1c2d3e4-5678-90ab-cdef-1234567890ab",
+      "otp_code": "4921"
     },
     "meeting_notes": "Met Dr. Sharma; demoed the diagnostic kit; requested follow-up next Friday."
   }
@@ -305,17 +329,21 @@ Base Path: `/api/v1`
   {
     "stop_id": "f5b2c918-1029-411a-82bc-90184b238e11",
     "status": "COMPLETED",
-    "dwell_time_seconds": 1040,
-    "dwell_time_formatted": "17 mins 20 secs",
+    "dwell_time_seconds": 1860,
+    "dwell_time_formatted": "31 mins 0 secs",
     "is_dwell_time_satisfied": true,
-    "proof_recorded": true,
+    "client_otp_verified": true,
+    "photo_proof_recorded": true,
     "next_suggested_stop": "Metro Pharma Distributor (1.8 km away)"
   }
   ```
-* **Error Response:**
-  * `400 Bad Request` — `DWELL_TIME_NOT_MET`: Employee only stayed 3 minutes (minimum 15 minutes required).
+* **Error Responses:**
+  * `400 Bad Request` — `DWELL_TIME_NOT_MET`: Employee only stayed 12 minutes (minimum 30 minutes required).
+  * `400 Bad Request` — `OTP_INVALID`: Entered OTP does not match the one sent to the client.
+  * `400 Bad Request` — `OTP_EXPIRED`: OTP validity window (5 minutes) has elapsed.
+  * `429 Too Many Requests` — `OTP_MAX_ATTEMPTS`: Maximum 3 OTP verification attempts exceeded.
 
-### 6.4 Upload Background Location Telemetry (Breadcrumbs Batch)
+### 6.5 Upload Background Location Telemetry (Breadcrumbs Batch)
 * **Endpoint:** `POST /api/v1/field/telemetry/breadcrumbs`
 * **Request Body:**
   ```json
@@ -337,7 +365,7 @@ Base Path: `/api/v1`
   ```
 * **Response (200 OK):** `{"processed_points": 1, "accumulated_distance_km": 14.8}`
 
-### 6.5 Manager Audit: Planned vs. Actual Itinerary Map
+### 6.6 Manager Audit: Planned vs. Actual Itinerary Map
 * **Endpoint:** `GET /api/v1/field/admin/itineraries/{itinerary_id}/audit`
 * **Response (200 OK):**
   ```json

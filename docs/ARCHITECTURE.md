@@ -159,16 +159,18 @@ flowchart TD
 
 2. **Enforced Dwell Time Verification (Anti-Drive-By):**
    * *The Problem:* Employees driving past a location or stopping for 30 seconds at a red light could falsely claim a visit.
-   * *The Solution:* The mobile app starts a **Dwell Timer** upon check-in. The visit cannot be marked "Completed" until the employee remains continuously inside the geofence for the minimum required duration (e.g., 10–20 minutes, configurable per client type).
+   * *The Solution:* The mobile app starts a **Dwell Timer** upon check-in. The visit cannot be marked "Completed" until the employee remains continuously inside the geofence for the minimum required duration (**default: 30 minutes**, configurable per tenant and overridable per destination).
 
 3. **Tamper-Proof In-App Photo Proof (Watermarked with Crypto Hash):**
    * Forces direct camera capture inside the app (gallery uploads strictly disabled).
    * Watermarks the photo with: timestamp, GPS coordinates, destination name, employee name, and server cryptographic hash.
    * EXIF metadata is cross-validated on the server against the check-in time and PostGIS geofence.
 
-4. **Counter-Verification (Customer Signature / OTP):**
-   * **Digital Signature:** The doctor, dealer, or shop manager signs on the mobile screen upon meeting completion.
-   * **Contact OTP (Optional):** Sends a rapid 4-digit verification code to the registered client/dealer's phone number.
+4. **Client SMS / WhatsApp OTP Counter-Verification:**
+   * Upon visit completion, the system sends a **4-digit OTP** to the client's (doctor, dealer, distributor) registered phone number via **SMS or WhatsApp** (channel configurable per destination or tenant default).
+   * The employee must enter this OTP into the app to finalize the visit.
+   * OTP expires after **5 minutes** with a maximum of **3 attempts**.
+   * This guarantees the employee actually met the client and did not merely drive to the parking lot.
 
 5. **Battery-Optimized Route Breadcrumbs & Deviation Audit:**
    * Tracks location telemetry in the background using intelligent motion detection (stationary vs. in-transit).

@@ -32,7 +32,10 @@ CREATE TABLE tenants (
         "require_face_liveness": true,
         "require_dynamic_qr": true,
         "require_wifi_bssid": true,
-        "allowed_clock_skew_seconds": 5
+        "allowed_clock_skew_seconds": 5,
+        "field_visit_default_dwell_minutes": 30,
+        "field_visit_require_client_otp": true,
+        "field_visit_otp_channel": "SMS"
     }',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -222,10 +225,11 @@ CREATE TABLE client_destinations (
     client_type VARCHAR(50) NOT NULL DEFAULT 'CUSTOMER', -- 'HOSPITAL', 'DEALER', 'DISTRIBUTOR', 'CUSTOMER'
     contact_person VARCHAR(150),
     contact_phone VARCHAR(30),
+    otp_channel VARCHAR(20) NOT NULL DEFAULT 'SMS', -- 'SMS', 'WHATSAPP', 'BOTH'
     address TEXT,
     coordinates GEOMETRY(Point, 4326) NOT NULL,
     geofence_radius_meters INT NOT NULL DEFAULT 75,
-    min_dwell_minutes INT NOT NULL DEFAULT 10, -- Minimum stay required to complete visit
+    min_dwell_minutes INT NOT NULL DEFAULT 30, -- Default 30 mins, overridden by tenant config
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -293,7 +297,7 @@ CREATE TABLE field_visit_proofs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
     visit_stop_id UUID NOT NULL REFERENCES field_visit_stops(id) ON DELETE CASCADE,
-    proof_type VARCHAR(50) NOT NULL, -- 'LIVE_CAMERA_PHOTO', 'CUSTOMER_SIGNATURE', 'CLIENT_OTP'
+    proof_type VARCHAR(50) NOT NULL, -- 'LIVE_CAMERA_PHOTO', 'CLIENT_SMS_OTP', 'CLIENT_WHATSAPP_OTP'
     file_url TEXT NOT NULL,
     captured_coordinates GEOMETRY(Point, 4326) NOT NULL,
     captured_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -302,7 +306,27 @@ CREATE TABLE field_visit_proofs (
 
 CREATE INDEX idx_visit_proofs_stop ON field_visit_proofs(visit_stop_id);
 
--- 13. Location Breadcrumbs (Continuous Route & Mileage Telemetry)
+-- 13. Client OTP Verification Log
+CREATE TABLE client_otp_verifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    visit_stop_id UUID NOT NULL REFERENCES field_visit_stops(id) ON DELETE CASCADE,
+    destination_id UUID NOT NULL REFERENCES client_destinations(id) ON DELETE CASCADE,
+    recipient_phone VARCHAR(30) NOT NULL,
+    otp_code VARCHAR(6) NOT NULL,
+    channel VARCHAR(20) NOT NULL DEFAULT 'SMS', -- 'SMS', 'WHATSAPP'
+    sent_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    verified_at TIMESTAMPTZ,
+    expires_at TIMESTAMPTZ NOT NULL,
+    attempts INT NOT NULL DEFAULT 0,
+    max_attempts INT NOT NULL DEFAULT 3,
+    status VARCHAR(20) NOT NULL DEFAULT 'SENT', -- 'SENT', 'VERIFIED', 'EXPIRED', 'FAILED'
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_otp_verifications_stop ON client_otp_verifications(visit_stop_id);
+
+-- 14. Location Breadcrumbs (Continuous Route & Mileage Telemetry)
 CREATE TABLE location_breadcrumbs (
     id BIGSERIAL PRIMARY KEY,
     tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
@@ -340,6 +364,7 @@ ALTER TABLE field_itineraries ENABLE ROW LEVEL SECURITY;
 ALTER TABLE field_visit_stops ENABLE ROW LEVEL SECURITY;
 ALTER TABLE field_visit_proofs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE location_breadcrumbs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE client_otp_verifications ENABLE ROW LEVEL SECURITY;
 
 -- Create Tenant Isolation Policies
 CREATE POLICY tenant_isolation_offices ON offices
@@ -376,5 +401,8 @@ CREATE POLICY tenant_isolation_proofs ON field_visit_proofs
     USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
 
 CREATE POLICY tenant_isolation_breadcrumbs ON location_breadcrumbs
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_otp ON client_otp_verifications
     USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
 ```

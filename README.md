@@ -84,9 +84,9 @@ To eliminate **buddy punching** and **remote proxy check-ins** without dedicated
 
 For employees visiting external clients, hospitals, dealers, or distributors:
 * **Destination Geofencing (PostGIS):** Client locations configured with tight geofence radiuses (50m–100m).
-* **Enforced Dwell Time (Anti-Drive-By):** Employees must physically remain at the destination for a minimum required duration (e.g. 10–20 mins) before the visit can be marked as completed.
+* **Enforced Dwell Time (Anti-Drive-By):** Employees must physically remain at the destination for a minimum required duration (**default: 30 minutes**, configurable by employer per tenant or per destination) before the visit can be marked as completed.
 * **Tamper-Proof Live Photo Proof:** Direct camera capture with cryptographic watermarking (time, GPS, client name, server hash). Gallery uploads are strictly forbidden.
-* **Client Counter-Verification:** Digital on-screen signature or rapid SMS/WhatsApp OTP counter-verification with the customer/dealer.
+* **Client SMS / WhatsApp OTP Counter-Verification:** A 4-digit OTP is sent to the client's (doctor, dealer, distributor) registered phone via SMS or WhatsApp. The employee must enter the OTP to finalize the visit, proving they actually met the contact person.
 * **Planned vs. Actual Itinerary Audit:** Continuous background breadcrumbs to detect unauthorized detours, track vehicle travel distance (mileage audit), and compare planned beats against actual visits.
 
 ---
