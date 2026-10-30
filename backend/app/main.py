@@ -48,6 +48,10 @@ app.add_middleware(
 # Multi-Tenant Resolution Middleware
 app.add_middleware(TenantMiddleware)
 
+# API v1 Routers
+from app.api.v1 import api_v1_router
+app.include_router(api_v1_router)
+
 
 # Health Check Endpoints
 @app.get("/health", tags=["System"])
