@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "ZuiGO Attendance & Field Tracker",
+    "slug": "zuigo-attendance",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#090d16"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "ai.zuigo.attendance",
+      "infoPlist": {
+        "NSCameraUsageDescription": "ZuiGO requires camera access for dynamic QR code scanning, facial liveness verification, and field visit photo proofs.",
+        "NSLocationWhenInUseUsageDescription": "ZuiGO requires location access to verify physical presence inside authorized office premises and client destinations.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "ZuiGO requires background location access to calculate accurate vehicle mileage and travel route logs during active field shifts."
+      }
+    },
+    "android": {
+      "package": "ai.zuigo.attendance",
+      "permissions": [
+        "CAMERA",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "ACCESS_WIFI_STATE",
+        "ACCESS_NETWORK_STATE",
+        "ACTIVITY_RECOGNITION"
+      ]
+    }
+  }
+}

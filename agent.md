@@ -8,9 +8,9 @@
 
 | Field | Value |
 |:---|:---|
-| **Current Phase** | Phase 1 to Phase 5: Core Services Built & Tested |
-| **Status** | 🟢 ALL TESTS PASSING (35/35 Passed in 9.24s) |
-| **Last Updated** | 2026-10-30T14:29:30+05:30 |
+| **Current Phase** | Phase 1 to Phase 5: Core Services & React Native Mobile App Built & Tested |
+| **Status** | 🟢 ALL TESTS PASSING (35/35 Passed in 5.94s) |
+| **Last Updated** | 2026-10-30T14:38:30+05:30 |
 | **Branch** | `main` |
 | **Repo** | https://github.com/ZuiGO/ZuiGO-Attendance-System |
 
@@ -26,57 +26,37 @@
 - [x] Redis connection pool manager (`backend/app/core/redis.py`).
 - [x] Multi-Tenant middleware (`backend/app/core/tenant.py`) supporting `X-Tenant-ID` header and subdomain routing.
 - [x] Native bcrypt password hashing and JWT access token creation/decoding (`backend/app/core/security.py`).
-- [x] Registered all 18 SQLAlchemy 2.0 ORM models in `backend/app/models/`:
-  - `tenants`, `offices`, `departments`, `employees`
-  - `attendance_records`
-  - `projects`, `tasks`, `task_time_entries`
-  - `client_destinations`, `field_itineraries`, `field_visit_stops`, `field_visit_proofs`, `client_otp_verifications`
-  - `vehicles`, `travel_logs`, `travel_legs`, `travel_expense_receipts`
-  - `location_breadcrumbs`
+- [x] Registered all 18 SQLAlchemy 2.0 ORM models in `backend/app/models/`.
 
 ### 2. Dynamic Rotating QR Engine & Laptop Kiosk (Phase 2)
 - [x] Pydantic schemas (`backend/app/schemas/kiosk.py`).
 - [x] Dynamic QR cryptographic HMAC-SHA256 generation with 15s validity and Redis single-use nonce caching (`backend/app/services/qr_service.py`).
 - [x] Single-use atomic consumption (`GETDEL` / pop): duplicate/reused QR tokens are immediately rejected.
 - [x] Kiosk API endpoints (`backend/app/api/v1/kiosk.py`) supporting HTTP polling and WebSocket streaming (`/qr-stream`).
-- [x] Lightweight Laptop Web Kiosk frontend (`apps/kiosk-web/`):
-  - Vite + React + TypeScript fullscreen terminal
-  - Animated high-contrast rotating QR code canvas
-  - 15-second dynamic countdown progress bar
-  - Live clock and connection status pill with offline buffer fallback.
+- [x] Lightweight Laptop Web Kiosk frontend (`apps/kiosk-web/`).
 
-### 3. Multi-Factor Physical Presence Attendance (Phase 3)
-- [x] Attendance schemas (`backend/app/schemas/attendance.py`) and auth schemas (`backend/app/schemas/auth.py`).
-- [x] Attendance Verification Service (`backend/app/services/attendance_service.py`) executing 5 Zero-Trust verification pillars:
-  1. Dynamic QR single-use nonce consumption.
-  2. 1:1 Hardware device binding (`device_id`).
-  3. OS-level mock location detection (`is_mock`).
-  4. Office Wi-Fi BSSID network geofencing.
-  5. On-device facial liveness check and cosine similarity matching ($>= 0.82$).
-- [x] Attendance endpoints (`backend/app/api/v1/attendance.py`): `/clock-in` and `/clock-out`.
+### 3. React Native Employee Mobile App (Phase 3)
+- [x] Cross-platform React Native / Expo application (`apps/mobile/`):
+  - Hardware device binding (`src/services/deviceSecurity.ts`): binds physical smartphone UUID & keypair.
+  - Network presence & mock GPS detector (`src/services/networkDetector.ts`): extracts Wi-Fi BSSID and flags OS mock locations.
+  - 1-second on-device selfie facial liveness scan (`src/services/livenessDetector.ts`).
+  - Secure authentication & attendance context providers (`src/context/`).
+  - Interactive screens:
+    - `LoginScreen.tsx`: Company login with hardware device binding badge.
+    - `DashboardScreen.tsx`: Attendance hero card, active task timer banner, quick action grid.
+    - `OfficeScanScreen.tsx`: Dynamic QR viewfinder + 1-sec selfie liveness prompt + clock-in.
+    - `TaskStopwatchScreen.tsx`: Attendance-gated task stopwatch (locked when not clocked in).
+    - `FieldVisitScreen.tsx`: 50+ client stops, 75m geofence arrival, **30-min dwell countdown bar**, client SMS/WhatsApp OTP modal.
+    - `TravelShiftScreen.tsx`: Transport mode selector (Car/Bike/Cab), start/end odometer photo capture, and 15% fraud discrepancy alert.
 
 ### 4. Task & Work Time Tracking Subsystem (Phase 4)
-- [x] Task schemas (`backend/app/schemas/task.py`).
-- [x] Task Tracking Service (`backend/app/services/task_service.py`):
-  - **Attendance-Gated Timers:** Employees cannot start a task timer unless physically clocked in today.
-  - **Single Active Timer Rule:** Starting a new task timer automatically stops/pauses any prior active timer.
-  - **Auto-Stop on Clock-Out:** Clocking out automatically closes open task timers.
+- [x] Attendance-gated task stopwatch engine (`backend/app/services/task_service.py`).
+- [x] Single active timer rule & auto-stop on clock-out.
 - [x] Task API endpoints (`backend/app/api/v1/tasks.py`).
 
 ### 5. Verifiable Field-Visit, Transport & Mileage Tracking (Phase 5)
-- [x] Field visit schemas (`backend/app/schemas/field_visit.py`) and travel schemas (`backend/app/schemas/travel.py`).
-- [x] Field Visit Service (`backend/app/services/field_visit_service.py`):
-  - Client destination geofencing ($< 75\text{m}$).
-  - **30-Minute Dwell-Time Enforcement (Anti-Drive-By):** Blocks completion if duration at client is $< 30$ mins.
-  - **Client SMS / WhatsApp OTP Verification:** Dispatches 4-digit OTP to client contact with 5-min TTL and 3-attempt limit.
-  - Tamper-proof in-app camera photo proof with cryptographic watermark.
-- [x] Field API endpoints (`backend/app/api/v1/field.py`).
-- [x] Travel & Mileage Service (`backend/app/services/travel_service.py`):
-  - Fleet and personal vehicle registry (`/travel/vehicles`).
-  - Odometer start & end photo capture.
-  - **Anti-Fraud Odometer Discrepancy Alert:** Flags any shift where odometer distance exceeds GPS distance by $> 15\%$.
-  - Automated reimbursement computation based on transport mode (Personal Car ₹8/km, Two-Wheeler ₹4/km).
-- [x] Travel API endpoints (`backend/app/api/v1/travel.py`).
+- [x] Field Visit Service (`backend/app/services/field_visit_service.py`) with 30-min minimum dwell time and client SMS/WhatsApp OTP counter-verification.
+- [x] Travel & Mileage Service (`backend/app/services/travel_service.py`) with odometer fraud detection (>15% discrepancy alert) and automated reimbursement.
 
 ---
 
