@@ -158,10 +158,168 @@ zuigo-attendance-system/
 
 ---
 
-## 📋 Implementation Roadmap
+---
 
-* **Phase 1:** Multi-tenant Foundation & Database Setup (PostgreSQL RLS + PostGIS + FastAPI Core).
-* **Phase 2:** Laptop Kiosk Display & Dynamic Rotating QR Engine (Redis + WebSockets).
-* **Phase 3:** React Native Mobile Client (Device Binding + Wi-Fi BSSID + Camera Liveness + QR Scanner).
-* **Phase 4:** Task Management & Live Time Tracking Engine.
-* **Phase 5:** Employer Analytics, Attendance Compliance & Reporting Dashboard.
+## 🚀 Getting Started & How to Run
+
+Follow these step-by-step instructions to run the entire ZuiGO Attendance System locally.
+
+### 📋 Prerequisites
+
+Ensure you have the following installed on your machine:
+* **Python 3.12+**
+* **Node.js 18+ & npm**
+* **Docker & Docker Compose** (for PostgreSQL PostGIS and Redis)
+
+---
+
+### Step 1: Clone Repository & Virtual Environment Setup
+
+```bash
+# Clone the repository
+git clone https://github.com/ZuiGO/ZuiGO-Attendance-System.git
+cd ZuiGO-Attendance-System
+
+# Create and activate Python virtual environment
+cd backend
+python -m venv .venv
+
+# On Windows:
+.\.venv\Scripts\activate
+# On Linux / macOS:
+source .venv/bin/activate
+
+# Install backend dependencies
+pip install -r requirements.txt
+cd ..
+```
+
+---
+
+### Step 2: Start Infrastructure (PostgreSQL PostGIS + Redis)
+
+Use Docker Compose to launch PostgreSQL 16 with PostGIS 3.4 and Redis 7 in detached mode:
+
+```bash
+cd docker
+docker compose up -d
+cd ..
+```
+
+This starts:
+* **PostgreSQL with PostGIS**: `localhost:5432` (Database: `zuigo_attendance`, User: `zuigo`)
+* **Redis**: `localhost:6379` (Nonce cache & Dynamic QR TTL tracking)
+
+---
+
+### Step 3: Initialize Database Schema & Seed Demo Data
+
+Run the automated initializer to enable PostGIS extensions, create all 18 tables, and populate realistic enterprise demo data:
+
+```powershell
+# 1. Initialize schema and extensions (uuid-ossp, pgcrypto, postgis)
+python backend/scripts/init_db.py
+
+# 2. Seed multi-tenant demo records (Tenant, Offices, Employees, Hospitals, Vehicles)
+python backend/scripts/seed_data.py
+```
+
+#### 🔑 Demo Accounts Seeded:
+| Name | Email | Role | Department | Default Password |
+|:---|:---|:---:|:---|:---:|
+| **Jayesh Admin** | `jayesh@zuigo.ai` | `ADMIN` | Engineering | `password123` |
+| **Alex Johnson** | `alex.j@zuigo.ai` | `EMPLOYEE` | Field Operations | `password123` |
+| **Priya Sharma** | `priya.s@zuigo.ai` | `EMPLOYEE` | Hospital Relations | `password123` |
+| **Rahul Verma** | `rahul.v@zuigo.ai` | `MANAGER` | Field Operations | `password123` |
+
+* **Demo Tenant Subdomain:** `zuigo` (Header: `X-Tenant-ID: <tenant-uuid>` or subdomain routing)
+* **Demo Kiosk API Key:** `kiosk_hq_dev_key_2026`
+
+---
+
+### Step 4: Run Automated Test Suite (50/50 Tests Passing)
+
+Execute the full automated test suite covering zero-trust QR nonces, face similarity thresholding, 30-minute dwell time gates, travel fraud alerts, and admin dashboards:
+
+```powershell
+# Windows
+.\backend\.venv\Scripts\pytest.exe -v backend/tests
+
+# Linux / macOS
+pytest -v backend/tests
+```
+
+---
+
+### Step 5: Start the FastAPI Backend Service
+
+```powershell
+# Windows
+.\backend\.venv\Scripts\uvicorn.exe app.main:app --app-dir backend --reload --port 8000
+
+# Linux / macOS
+uvicorn app.main:app --app-dir backend --reload --port 8000
+```
+
+* **Interactive Swagger UI Docs:** [http://localhost:8000/docs](http://localhost:8000/docs)
+* **ReDoc Documentation:** [http://localhost:8000/redoc](http://localhost:8000/redoc)
+* **Health Check Probe:** [http://localhost:8000/health](http://localhost:8000/health)
+
+---
+
+### Step 6: Start Laptop Dynamic QR Kiosk Web App
+
+The lightweight kiosk web application runs on any laptop screen placed at the office entrance, generating a single-use HMAC-SHA256 rotating QR code every 15 seconds:
+
+```bash
+cd apps/kiosk-web
+npm install
+npm run dev
+```
+
+* **Kiosk Terminal URL:** [http://localhost:5173](http://localhost:5173)
+
+---
+
+### Step 7: Start Employer Management & Live Presence Dashboard
+
+The web management portal gives administrators real-time presence visibility, field visit beat monitoring, and travel reimbursement approval controls:
+
+```bash
+cd apps/admin-web
+npm install
+npm run dev
+```
+
+* **Employer Dashboard URL:** [http://localhost:5174](http://localhost:5174)
+
+---
+
+### Step 8: Start Employee React Native Mobile App
+
+The cross-platform React Native / Expo application allows employees to scan rotating QR codes, verify 1-sec selfie liveness, manage task stopwatches, execute 30-min field visits, and capture odometer shifts:
+
+```bash
+cd apps/mobile
+npm install
+npm start
+```
+
+* Press `a` in terminal to launch in **Android Emulator**.
+* Press `i` to launch in **iOS Simulator**.
+* Scan QR code with the **Expo Go** app on a physical Android or iOS device.
+
+---
+
+## 🧪 Key Endpoints & Architectural Highlights
+
+| Method | Endpoint | Description | Anti-Fraud Defense |
+|:---:|:---|:---|:---|
+| `GET` | `/api/v1/kiosk/qr-stream` | Dynamic QR code WebSocket & polling stream | Signed HMAC-SHA256, 15-sec TTL, single-use Redis nonce |
+| `POST` | `/api/v1/attendance/clock-in` | Zero-trust physical presence check-in | 1:1 hardware device bind, mock GPS check, BSSID geofence, 1-sec face liveness |
+| `POST` | `/api/v1/tasks/timer/start` | Attendance-gated task stopwatch start | Rejects unclocked employees; auto-pauses overlapping timers |
+| `POST` | `/api/v1/field/stop/arrive` | Destination arrival check-in | 75m PostGIS geofence; triggers mandatory 30-min dwell timer |
+| `POST` | `/api/v1/field/visit/complete` | Proof of Physical Visit (PoPV) completion | 30-min dwell enforcement + client SMS/WhatsApp 4-digit OTP |
+| `POST` | `/api/v1/travel/shift/end` | Mileage log submission | Compares odometer vs GPS polyline; flags $> 15\%$ fraud discrepancy |
+| `GET` | `/api/v1/admin/presence/live` | Employer live presence & task ticker board | Real-time presence %, active dwell counters, live task stopwatches |
+| `POST` | `/api/v1/admin/policies` | Policy configuration studio | Configurable 15m–120m dwell time, OTP channels, and ₹/km travel rates |
