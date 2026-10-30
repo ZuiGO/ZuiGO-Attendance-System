@@ -384,3 +384,132 @@ Base Path: `/api/v1`
     }
   }
   ```
+
+---
+
+## 7. Transport Mode, Vehicle & Mileage Tracking
+
+### 7.1 Start Field Travel (Select Vehicle & Transport Mode)
+* **Endpoint:** `POST /api/v1/field/travel/start`
+* **Description:** Called when employee begins a field shift. Captures transport mode, vehicle selection, and odometer start photo.
+* **Request Body:**
+  ```json
+  {
+    "itinerary_id": "8c12a734-9102-4f11-b021-9316c0228bb4",
+    "transport_mode": "PERSONAL_CAR",
+    "vehicle_id": "v1b2c3d4-5678-90ab-cdef-1234567890ab",
+    "odometer_start_km": 45230.5,
+    "odometer_start_photo_upload_id": "upload_odo_start_8f91..."
+  }
+  ```
+* **Response (200 OK):**
+  ```json
+  {
+    "travel_log_id": "tl-a1b2c3d4-5678-90ab-cdef-1234567890ab",
+    "transport_mode": "PERSONAL_CAR",
+    "vehicle": {
+      "registration_number": "DL-01-AB-1234",
+      "make_model": "Maruti Swift",
+      "ownership": "PERSONAL"
+    },
+    "reimbursement_rate_per_km": 8.00,
+    "shift_start_time": "2026-10-30T09:00:00Z",
+    "status": "ACTIVE"
+  }
+  ```
+
+### 7.2 End Field Travel (Odometer End + Trip Summary)
+* **Endpoint:** `POST /api/v1/field/travel/{travel_log_id}/end`
+* **Request Body:**
+  ```json
+  {
+    "odometer_end_km": 45273.2,
+    "odometer_end_photo_upload_id": "upload_odo_end_3a72..."
+  }
+  ```
+* **Response (200 OK):**
+  ```json
+  {
+    "travel_log_id": "tl-a1b2c3d4-5678-90ab-cdef-1234567890ab",
+    "status": "COMPLETED",
+    "summary": {
+      "transport_mode": "PERSONAL_CAR",
+      "vehicle_registration": "DL-01-AB-1234",
+      "odometer_distance_km": 42.7,
+      "gps_computed_distance_km": 41.3,
+      "discrepancy_pct": 3.39,
+      "is_discrepancy_flagged": false,
+      "total_legs": 6,
+      "total_travel_duration_formatted": "2h 45m",
+      "reimbursement_rate_per_km": 8.00,
+      "reimbursement_amount": 330.40,
+      "reimbursement_status": "PENDING"
+    },
+    "legs": [
+      {
+        "leg": 1,
+        "from": "Office",
+        "to": "Apollo City Hospital",
+        "distance_km": 8.2,
+        "duration": "22 mins",
+        "avg_speed_kmh": 22.4,
+        "detected_mode": "IN_VEHICLE",
+        "unauthorized_stop": false
+      },
+      {
+        "leg": 2,
+        "from": "Apollo City Hospital",
+        "to": "Metro Pharma Distributor",
+        "distance_km": 5.1,
+        "duration": "15 mins",
+        "avg_speed_kmh": 20.4,
+        "detected_mode": "IN_VEHICLE",
+        "unauthorized_stop": false
+      }
+    ]
+  }
+  ```
+
+### 7.3 Upload Travel Expense Receipt (Cab / Public Transport)
+* **Endpoint:** `POST /api/v1/field/travel/{travel_log_id}/receipts`
+* **Request Body:**
+  ```json
+  {
+    "receipt_type": "CAB_RECEIPT",
+    "amount": 345.00,
+    "currency": "INR",
+    "receipt_photo_upload_id": "upload_receipt_f9a2...",
+    "notes": "Ola ride from Metro Pharma to Sector 62 client"
+  }
+  ```
+* **Response (200 OK):**
+  ```json
+  {
+    "receipt_id": "r1a2b3c4-5678-90ab-cdef-1234567890ab",
+    "receipt_type": "CAB_RECEIPT",
+    "amount": 345.00,
+    "status": "UPLOADED"
+  }
+  ```
+
+### 7.4 Manager: Travel & Mileage Audit Report
+* **Endpoint:** `GET /api/v1/field/admin/travel-audit?employee_id={id}&from={date}&to={date}`
+* **Response (200 OK):**
+  ```json
+  {
+    "employee_name": "Rajesh Kumar",
+    "period": "2026-10-01 to 2026-10-30",
+    "total_field_days": 18,
+    "transport_breakdown": [
+      { "mode": "PERSONAL_CAR", "days": 14, "total_km": 612.4, "reimbursement": 4899.20 },
+      { "mode": "TWO_WHEELER", "days": 3, "total_km": 87.2, "reimbursement": 348.80 },
+      { "mode": "CAB", "days": 1, "total_km": null, "reimbursement": 680.00 }
+    ],
+    "total_reimbursement_pending": 5928.00,
+    "discrepancy_flags": 0,
+    "vehicles_used": [
+      { "registration": "DL-01-AB-1234", "type": "CAR", "ownership": "PERSONAL", "total_km": 612.4 },
+      { "registration": "DL-02-CD-5678", "type": "TWO_WHEELER", "ownership": "PERSONAL", "total_km": 87.2 }
+    ]
+  }
+  ```

@@ -88,6 +88,7 @@ For employees visiting external clients, hospitals, dealers, or distributors:
 * **Tamper-Proof Live Photo Proof:** Direct camera capture with cryptographic watermarking (time, GPS, client name, server hash). Gallery uploads are strictly forbidden.
 * **Client SMS / WhatsApp OTP Counter-Verification:** A 4-digit OTP is sent to the client's (doctor, dealer, distributor) registered phone via SMS or WhatsApp. The employee must enter the OTP to finalize the visit, proving they actually met the contact person.
 * **Planned vs. Actual Itinerary Audit:** Continuous background breadcrumbs to detect unauthorized detours, track vehicle travel distance (mileage audit), and compare planned beats against actual visits.
+* **Transport Mode & Vehicle Mileage Tracking:** Employees declare transport mode (Company Car, Personal Car, Two-Wheeler, Cab, Public Transport) and select assigned vehicle at shift start. GPS breadcrumb polyline computes exact per-leg kilometers via PostGIS `ST_Length`. Odometer start/end photos provide anti-fraud cross-verification against GPS distance. Automatic transport-mode-based reimbursement calculation with employer-configurable per-km rates.
 
 ---
 

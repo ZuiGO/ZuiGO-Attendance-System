@@ -70,16 +70,29 @@ This document outlines the step-by-step phased execution plan. Development will 
   * Dwell-time enforcement rules (**default: 30 minutes**, configurable per tenant and overridable per destination) and arrival/departure state tracking.
   * Client SMS / WhatsApp OTP service integration (via Twilio / MSG91 / WhatsApp Business API).
   * OTP generation, delivery, expiry (5 min TTL), and verification pipeline with rate limiting (max 3 attempts).
-* **Milestone 5.2: In-App Field Visit Verification & Telemetry (React Native)**
+* **Milestone 5.2: Transport Mode, Vehicle & Mileage Engine (Backend)**
+  * Vehicle registry CRUD (Company fleet & personal vehicles with registration, type, fuel type).
+  * Travel log lifecycle (start shift → per-leg distance computation → end shift with trip summary).
+  * PostGIS `ST_MakeLine` + `ST_Length` breadcrumb polyline distance computation per leg.
+  * Odometer photo capture and GPS vs. odometer discrepancy detection (configurable threshold, default 15%).
+  * Transport-mode-based reimbursement calculation engine with tenant-configurable per-km rates.
+  * Travel expense receipt upload for cab/public transport modes.
+* **Milestone 5.3: In-App Field Visit Verification & Telemetry (React Native)**
   * Field mode dashboard: Today's assigned stops ordered by route sequence.
   * Geofence arrival check-in with live distance-to-target indicator.
   * In-App Live Camera capture with anti-tamper watermark (time, GPS, client name, server hash).
   * Client SMS / WhatsApp OTP request and verification UI (masked phone number display, countdown timer, retry handling).
+  * Transport mode selector and vehicle picker at field shift start.
+  * In-app odometer photo capture (start & end of shift) with live camera enforcement.
+  * Activity Recognition integration for auto-detecting transport mode (Android Activity Recognition API / iOS CMMotionActivityManager).
+  * Travel expense receipt camera capture for cab/public transport modes.
   * Background location breadcrumb collector with stationary battery saver.
-* **Milestone 5.3: Manager Planned vs. Actual Route Audit**
+* **Milestone 5.4: Manager Planned vs. Actual Route Audit**
   * Interactive map visualization: Planned stops vs. actual visited stops.
   * Route breadcrumb playback with travel speed and dwell time per location.
   * Exception alerts: Missed visits, unauthorized detours, and drive-bys (arrival without dwell time).
+  * Monthly travel & mileage audit report with per-vehicle distance breakdown and reimbursement totals.
+  * Odometer vs. GPS discrepancy flagging dashboard.
 
 ---
 
@@ -109,3 +122,6 @@ This document outlines the step-by-step phased execution plan. Development will 
 | **TC-09** | Field employee attempts to upload a stock photo from device gallery. | Blocked: App forces direct camera capture only with cryptographic watermark. |
 | **TC-10** | Field employee enters wrong OTP 3 times trying to guess the code. | Rejected: `429 Too Many Requests` (`OTP_MAX_ATTEMPTS`). |
 | **TC-11** | Field employee enters expired OTP (after 5-minute validity window). | Rejected: `400 Bad Request` (`OTP_EXPIRED`). |
+| **TC-12** | Employee declares "Personal Car" but GPS shows 0 km (stayed at office). | Discrepancy flagged: `GPS_DISTANCE_ZERO`. |
+| **TC-13** | Odometer photos show 42.7 km but GPS breadcrumbs compute 28.1 km (34% gap). | Discrepancy flagged: `ODOMETER_GPS_MISMATCH` (exceeds 15% threshold). |
+| **TC-14** | Employee takes detour to personal errand (20 min unauthorized stop detected). | Travel leg flagged: `UNAUTHORIZED_STOP_DETECTED`. |

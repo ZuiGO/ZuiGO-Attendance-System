@@ -176,6 +176,74 @@ flowchart TD
    * Tracks location telemetry in the background using intelligent motion detection (stationary vs. in-transit).
    * Detects and highlights unauthorized route deviations, prolonged unauthorized stops (>20 mins at non-destination spots), and calculates exact vehicle kilometers for travel allowance auditing.
 
+### 4.2 Transport Mode & Vehicle Mileage Tracking
+
+For each field itinerary, the system tracks the **mode of transport**, **which vehicle** was used, and **exact kilometers traveled per leg** to provide accurate reimbursement data and fleet visibility.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Employee as Employee Mobile App
+    participant Backend as FastAPI Backend
+    participant DB as PostgreSQL (PostGIS)
+
+    Employee->>Backend: Start Field Shift (Select Transport Mode & Vehicle)
+    Backend->>DB: Create travel_log (mode, vehicle_id, odometer_start_photo)
+    
+    loop Every leg between stops
+        Employee->>Employee: Background GPS breadcrumbs collected
+        Employee->>Backend: Arrive at Stop N
+        Backend->>DB: Compute leg distance via ST_Length on breadcrumb LineString
+        Backend->>DB: Record travel_leg (from_stop, to_stop, km, duration)
+    end
+
+    Employee->>Backend: End Field Shift
+    Backend->>DB: Finalize travel_log (total_km, odometer_end_photo, reimbursement)
+    Backend-->>Employee: Trip Summary (legs, km, cost)
+```
+
+#### How Distance Is Calculated (No Hardware Needed)
+
+1. **GPS Breadcrumb Polyline Distance (Primary):**
+   * The `location_breadcrumbs` table already captures timestamped GPS points every few seconds while in transit.
+   * At each stop arrival, the backend assembles all breadcrumb points since the last stop into a PostGIS `LineString` and computes road-following distance:
+     ```sql
+     SELECT ST_Length(
+       ST_MakeLine(coordinates ORDER BY recorded_at)::geography
+     ) / 1000.0 AS distance_km
+     FROM location_breadcrumbs
+     WHERE employee_id = :emp_id
+       AND recorded_at BETWEEN :leg_start AND :leg_end;
+     ```
+   * This gives **actual path distance** (curves, turns, detours), not straight-line distance.
+
+2. **Odometer Photo Proof (Anti-Fraud for Company Vehicles):**
+   * At **shift start**, the employee captures a live in-app photo of the vehicle's odometer/dashboard.
+   * At **shift end**, they capture another odometer photo.
+   * Server compares `odometer_end - odometer_start` against GPS-computed distance.
+   * A discrepancy flag is raised if the difference exceeds a configurable threshold (e.g., >15%), indicating potential personal detours or odometer tampering.
+
+3. **Activity Recognition (Auto-Detect Transport Mode):**
+   * Android's **Activity Recognition API** and iOS **CMMotionActivityManager** can automatically detect whether the user is `STATIONARY`, `WALKING`, `ON_BICYCLE`, `IN_VEHICLE`, or `RUNNING`.
+   * This is captured alongside breadcrumbs and used to auto-tag travel legs and validate the declared transport mode.
+
+#### Vehicle Registry & Assignment
+
+* **Company Vehicles:** Registered in the system with plate number, type (car, bike, van), and fuel type. Assigned to employees per shift or permanently.
+* **Personal Vehicles:** Employees register their personal vehicle during onboarding. Different reimbursement rates apply.
+* **Cab / Public Transport:** Employee declares mode; receipt photo upload is required for reimbursement.
+
+#### Transport-Based Reimbursement Calculation
+
+| Transport Mode | Rate Model | Proof Required |
+| :--- | :--- | :--- |
+| **Company Car** | No per-km reimbursement (fuel card) | Odometer start/end photos |
+| **Personal Car (4-Wheeler)** | ₹X per km (tenant-configurable) | GPS distance + odometer photos |
+| **Personal Two-Wheeler** | ₹Y per km (tenant-configurable) | GPS distance |
+| **Auto / Cab (Ride-Hail)** | Actual fare | Receipt photo upload |
+| **Public Transport** | Actual fare | Ticket / pass photo upload |
+| **Walking** | No reimbursement | Auto-detected via activity recognition |
+
 ---
 
 ## 5. Multi-Tenant Architecture & Data Isolation

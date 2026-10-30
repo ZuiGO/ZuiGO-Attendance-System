@@ -35,7 +35,14 @@ CREATE TABLE tenants (
         "allowed_clock_skew_seconds": 5,
         "field_visit_default_dwell_minutes": 30,
         "field_visit_require_client_otp": true,
-        "field_visit_otp_channel": "SMS"
+        "field_visit_otp_channel": "SMS",
+        "travel_reimbursement_rates": {
+            "PERSONAL_CAR": 8.00,
+            "TWO_WHEELER": 4.00,
+            "CAB": "ACTUAL",
+            "PUBLIC_TRANSPORT": "ACTUAL"
+        },
+        "odometer_discrepancy_threshold_pct": 15
     }',
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -338,12 +345,129 @@ CREATE TABLE location_breadcrumbs (
     speed_kmh NUMERIC(6, 2),
     battery_level INT,
     is_mock BOOLEAN NOT NULL DEFAULT FALSE,
-    activity_type VARCHAR(30) DEFAULT 'UNKNOWN', -- 'STATIONARY', 'IN_VEHICLE', 'WALKING'
+    activity_type VARCHAR(30) DEFAULT 'UNKNOWN', -- 'STATIONARY', 'IN_VEHICLE', 'WALKING', 'ON_BICYCLE', 'RUNNING'
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 CREATE INDEX idx_breadcrumbs_emp_time ON location_breadcrumbs(tenant_id, employee_id, recorded_at);
 CREATE INDEX idx_breadcrumbs_spatial ON location_breadcrumbs USING GIST (coordinates);
+
+-- 15. Vehicles (Company Fleet & Employee Personal Vehicles)
+CREATE TABLE vehicles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    ownership_type VARCHAR(20) NOT NULL DEFAULT 'COMPANY', -- 'COMPANY', 'PERSONAL'
+    vehicle_type VARCHAR(30) NOT NULL, -- 'CAR', 'TWO_WHEELER', 'VAN', 'TRUCK'
+    registration_number VARCHAR(30) NOT NULL,
+    make_model VARCHAR(100),
+    fuel_type VARCHAR(20) DEFAULT 'PETROL', -- 'PETROL', 'DIESEL', 'EV', 'CNG'
+    assigned_employee_id UUID REFERENCES employees(id) ON DELETE SET NULL,
+    is_active BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (tenant_id, registration_number)
+);
+
+CREATE INDEX idx_vehicles_tenant ON vehicles(tenant_id);
+CREATE INDEX idx_vehicles_assigned ON vehicles(tenant_id, assigned_employee_id);
+
+-- 16. Travel Logs (Per-Shift Travel Summary)
+CREATE TABLE travel_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    employee_id UUID NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+    itinerary_id UUID REFERENCES field_itineraries(id) ON DELETE SET NULL,
+    vehicle_id UUID REFERENCES vehicles(id) ON DELETE SET NULL,
+    
+    transport_mode VARCHAR(30) NOT NULL, -- 'COMPANY_CAR', 'PERSONAL_CAR', 'TWO_WHEELER', 'CAB', 'PUBLIC_TRANSPORT', 'WALKING'
+    
+    shift_start_time TIMESTAMPTZ NOT NULL,
+    shift_end_time TIMESTAMPTZ,
+    
+    -- Odometer Readings (Anti-Fraud for Vehicle Trips)
+    odometer_start_km NUMERIC(10, 1),
+    odometer_start_photo_url TEXT,        -- In-app captured photo of dashboard odometer at shift start
+    odometer_end_km NUMERIC(10, 1),
+    odometer_end_photo_url TEXT,          -- In-app captured photo at shift end
+    odometer_distance_km NUMERIC(8, 2) GENERATED ALWAYS AS (
+        CASE WHEN odometer_end_km IS NOT NULL AND odometer_start_km IS NOT NULL 
+        THEN odometer_end_km - odometer_start_km 
+        ELSE NULL END
+    ) STORED,
+    
+    -- GPS-Computed Distance
+    gps_total_distance_km NUMERIC(8, 2) NOT NULL DEFAULT 0.00,
+    
+    -- Discrepancy Flag (odometer vs GPS mismatch)
+    distance_discrepancy_pct NUMERIC(5, 2), -- e.g., 12.5 means GPS is 12.5% less than odometer
+    is_discrepancy_flagged BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    -- Reimbursement
+    reimbursement_rate_per_km NUMERIC(6, 2) DEFAULT 0.00, -- Tenant-configurable rate
+    reimbursement_amount NUMERIC(10, 2) DEFAULT 0.00,
+    reimbursement_status VARCHAR(20) NOT NULL DEFAULT 'PENDING', -- 'PENDING', 'APPROVED', 'REJECTED', 'PAID'
+    
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE', -- 'ACTIVE', 'COMPLETED', 'CANCELLED'
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_travel_logs_employee ON travel_logs(tenant_id, employee_id, shift_start_time);
+CREATE INDEX idx_travel_logs_vehicle ON travel_logs(tenant_id, vehicle_id);
+
+-- 17. Travel Legs (Per-Leg Distance Between Consecutive Stops)
+CREATE TABLE travel_legs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    travel_log_id UUID NOT NULL REFERENCES travel_logs(id) ON DELETE CASCADE,
+    leg_sequence INT NOT NULL DEFAULT 1,
+    
+    from_location_name VARCHAR(255) NOT NULL, -- Could be "Office" or a destination name
+    from_coordinates GEOMETRY(Point, 4326) NOT NULL,
+    to_location_name VARCHAR(255) NOT NULL,
+    to_coordinates GEOMETRY(Point, 4326) NOT NULL,
+    
+    departure_time TIMESTAMPTZ NOT NULL,
+    arrival_time TIMESTAMPTZ,
+    travel_duration_seconds INT GENERATED ALWAYS AS (
+        CASE WHEN arrival_time IS NOT NULL 
+        THEN EXTRACT(EPOCH FROM (arrival_time - departure_time))::INT 
+        ELSE NULL END
+    ) STORED,
+    
+    gps_distance_km NUMERIC(8, 2) NOT NULL DEFAULT 0.00, -- Computed from breadcrumb polyline
+    straight_line_distance_km NUMERIC(8, 2), -- ST_Distance for comparison
+    
+    detected_transport_mode VARCHAR(30), -- Auto-detected via Activity Recognition API
+    avg_speed_kmh NUMERIC(6, 2),
+    max_speed_kmh NUMERIC(6, 2),
+    
+    -- Deviation / Anomaly Flags
+    has_unauthorized_stop BOOLEAN NOT NULL DEFAULT FALSE,
+    unauthorized_stop_duration_seconds INT DEFAULT 0,
+    route_deviation_detected BOOLEAN NOT NULL DEFAULT FALSE,
+    
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_travel_legs_log ON travel_legs(travel_log_id, leg_sequence);
+
+-- 18. Travel Expense Receipts (For Cab / Public Transport)
+CREATE TABLE travel_expense_receipts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+    travel_log_id UUID NOT NULL REFERENCES travel_logs(id) ON DELETE CASCADE,
+    receipt_type VARCHAR(30) NOT NULL, -- 'CAB_RECEIPT', 'BUS_TICKET', 'TRAIN_TICKET', 'METRO_PASS', 'TOLL_RECEIPT', 'FUEL_RECEIPT'
+    amount NUMERIC(10, 2) NOT NULL,
+    currency VARCHAR(3) NOT NULL DEFAULT 'INR',
+    receipt_photo_url TEXT NOT NULL,
+    captured_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    captured_coordinates GEOMETRY(Point, 4326),
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_expense_receipts_log ON travel_expense_receipts(travel_log_id);
 ```
 
 ---
@@ -365,6 +489,10 @@ ALTER TABLE field_visit_stops ENABLE ROW LEVEL SECURITY;
 ALTER TABLE field_visit_proofs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE location_breadcrumbs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE client_otp_verifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE travel_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE travel_legs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE travel_expense_receipts ENABLE ROW LEVEL SECURITY;
 
 -- Create Tenant Isolation Policies
 CREATE POLICY tenant_isolation_offices ON offices
@@ -404,5 +532,17 @@ CREATE POLICY tenant_isolation_breadcrumbs ON location_breadcrumbs
     USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
 
 CREATE POLICY tenant_isolation_otp ON client_otp_verifications
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_vehicles ON vehicles
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_travel_logs ON travel_logs
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_travel_legs ON travel_legs
+    USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
+
+CREATE POLICY tenant_isolation_expense_receipts ON travel_expense_receipts
     USING (tenant_id = NULLIF(current_setting('app.current_tenant_id', true), '')::uuid);
 ```
