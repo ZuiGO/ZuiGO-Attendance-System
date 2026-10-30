@@ -10,20 +10,22 @@
   },
   "dependencies": {
     "expo": "~51.0.0",
+    "expo-camera": "~15.0.13",
+    "expo-crypto": "~13.0.2",
+    "expo-device": "~6.0.2",
+    "expo-location": "~17.0.1",
+    "expo-network": "~6.0.1",
+    "expo-secure-store": "~13.0.2",
     "expo-status-bar": "~1.12.1",
+    "lucide-react-native": "^0.400.0",
     "react": "18.2.0",
     "react-native": "0.74.5",
-    "expo-camera": "~15.0.13",
-    "expo-location": "~17.0.1",
-    "expo-secure-store": "~13.0.2",
-    "expo-network": "~6.0.1",
-    "expo-device": "~6.0.2",
-    "expo-crypto": "~13.0.2",
-    "lucide-react-native": "^0.400.0"
+    "react-native-svg": "15.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",
     "@types/react": "~18.2.45",
+    "babel-preset-expo": "~11.0.0",
     "typescript": "~5.3.3"
   },
   "private": true

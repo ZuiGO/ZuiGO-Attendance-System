@@ -1,10 +1,14 @@
+import Constants from 'expo-constants';
+
 /**
  * API client communicating with FastAPI backend.
  * Handles automatic JWT injection, tenant boundary resolution, and response decoding.
  */
 
-// Configure base URL (default local development IP, overridable)
-export const API_BASE_URL = 'http://10.0.2.2:8000/api/v1'; // Android emulator localhost alias or local IP
+// Dynamically determine host IP from Expo hostUri or fallback to LAN IP for physical device
+const debuggerHost = Constants.expoConfig?.hostUri;
+const hostIp = debuggerHost ? debuggerHost.split(':')[0] : '192.168.1.111';
+export const API_BASE_URL = `http://${hostIp}:8000/api/v1`;
 
 let _authToken: string | null = null;
 let _tenantId: string | null = null;
