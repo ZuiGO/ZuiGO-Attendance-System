@@ -1,6 +1,7 @@
 """Field Visit Service: Destination Geofencing, 30-min Dwell Time, and Client OTP Verification."""
 
 from datetime import datetime, timedelta, timezone
+import math
 import random
 import re
 from typing import List, Optional, Tuple

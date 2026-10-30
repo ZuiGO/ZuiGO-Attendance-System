@@ -107,6 +107,13 @@ class TravelLog(Base):
     legs: Mapped[List["TravelLeg"]] = relationship("TravelLeg", back_populates="travel_log", cascade="all, delete-orphan")
     receipts: Mapped[List["TravelExpenseReceipt"]] = relationship("TravelExpenseReceipt", back_populates="travel_log", cascade="all, delete-orphan")
 
+    @property
+    def odometer_distance_km(self) -> Optional[float]:
+        """Calculates distance traveled from start and end odometer readings."""
+        if self.odometer_start_km is not None and self.odometer_end_km is not None:
+            return round(float(self.odometer_end_km) - float(self.odometer_start_km), 2)
+        return None
+
 
 class TravelLeg(Base):
     __tablename__ = "travel_legs"

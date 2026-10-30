@@ -350,12 +350,10 @@ async def seed():
             logger.info("Created Project: %s with 2 Tasks", project.name)
 
         # 8. Sample Travel Logs (Reimbursements & Fraud Discrepancy Alert)
-        today = date.today()
         tl_res = await session.execute(
             select(TravelLog).where(
                 TravelLog.tenant_id == tenant_id,
                 TravelLog.employee_id == employees["EMP-1001"].id,
-                TravelLog.shift_date == today,
             )
         )
         travel_log1 = tl_res.scalar_one_or_none()
@@ -368,19 +366,17 @@ async def seed():
                 employee_id=employees["EMP-1001"].id,
                 vehicle_id=vehicles["DL-01-AB-1234"].id,
                 transport_mode="COMPANY_CAR",
-                shift_date=today,
                 shift_start_time=now - timedelta(hours=4),
                 shift_end_time=now - timedelta(minutes=30),
-                start_odometer_km=45210.0,
-                end_odometer_km=45238.0,
-                odometer_distance_km=28.0,
+                odometer_start_km=45210.0,
+                odometer_end_km=45238.0,
                 gps_total_distance_km=27.4,
-                discrepancy_percentage=2.19,
+                distance_discrepancy_pct=2.19,
                 is_discrepancy_flagged=False,
                 reimbursement_rate_per_km=8.00,
                 reimbursement_amount=224.00,
-                approval_status="APPROVED",
-                approved_at=now - timedelta(minutes=15),
+                reimbursement_status="APPROVED",
+                status="COMPLETED",
             )
             session.add(travel_log1)
 
@@ -391,18 +387,17 @@ async def seed():
                 employee_id=employees["EMP-1003"].id,
                 vehicle_id=vehicles["DL-09-XY-9999"].id,
                 transport_mode="PERSONAL_CAR",
-                shift_date=today,
                 shift_start_time=now - timedelta(hours=3),
                 shift_end_time=now - timedelta(minutes=10),
-                start_odometer_km=12000.0,
-                end_odometer_km=12065.0,
-                odometer_distance_km=65.0,
+                odometer_start_km=12000.0,
+                odometer_end_km=12065.0,
                 gps_total_distance_km=42.0,
-                discrepancy_percentage=54.76,  # 54.8% >> 15% threshold!
+                distance_discrepancy_pct=54.76,  # 54.8% >> 15% threshold!
                 is_discrepancy_flagged=True,
                 reimbursement_rate_per_km=8.00,
                 reimbursement_amount=520.00,
-                approval_status="PENDING_REVIEW",
+                reimbursement_status="PENDING",
+                status="COMPLETED",
             )
             session.add(travel_log2)
             await session.flush()
