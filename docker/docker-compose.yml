@@ -1,0 +1,70 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: zuigo-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: zuigo_attendance
+      POSTGRES_USER: zuigo
+      POSTGRES_PASSWORD: zuigo_dev_2026
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U zuigo -d zuigo_attendance"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zuigo-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: zuigo-redis
+    restart: always
+    command: redis-server --appendonly yes
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - zuigo-network
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: zuigo-backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://zuigo:zuigo_dev_2026@postgres:5432/zuigo_attendance
+      - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=dev-jwt-secret-key-zuigo-attendance-2026
+      - QR_HMAC_SECRET=dev-qr-hmac-secret-zuigo-attendance-2026
+    networks:
+      - zuigo-network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  zuigo-network:
+    driver: bridge
