@@ -237,9 +237,9 @@ python backend/scripts/seed_data.py
 
 ---
 
-### Step 4: Run Automated Test Suite (50/50 Tests Passing)
+### Step 4: Run Automated Test Suite (54/54 Tests Passing)
 
-Execute the full automated test suite covering zero-trust QR nonces, face similarity thresholding, 30-minute dwell time gates, travel fraud alerts, and admin dashboards:
+Execute the full automated test suite covering zero-trust QR nonces, face similarity thresholding, 30-minute dwell time gates, travel fraud alerts, office geofence locations, and admin dashboards:
 
 ```powershell
 # Windows

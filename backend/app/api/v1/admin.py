@@ -12,9 +12,14 @@ from app.schemas.admin import (
     AdminTaskItem,
     ApproveReimbursementRequest,
     AssignTaskRequest,
+    CreateDestinationRequest,
     CreateEmployeeRequest,
+    CreateOfficeRequest,
+    DestinationItem,
     EmployeeItem,
+    FieldBeatItem,
     LivePresenceBoardResponse,
+    OfficeItem,
     TenantPolicyUpdate,
     TravelReimbursementItem,
     UserActivityLogItem,
@@ -207,3 +212,108 @@ async def update_tenant_policy(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
 
     return {"status": "UPDATED", "configuration": updated_config}
+
+
+# ==============================================================================
+# 7. OFFICE LOCATIONS & GEOFENCE SETTINGS
+# ==============================================================================
+
+@router.get("/offices", response_model=List[OfficeItem])
+async def list_offices(
+    current_user: Annotated[dict, Depends(require_role(["ADMIN", "MANAGER"]))],
+    admin_service: Annotated[AdminDashboardService, Depends(get_admin_service)],
+):
+    """Lists all configured office locations with GPS coordinates, allowed radius, and Wi-Fi BSSIDs."""
+    tenant_id = uuid.UUID(current_user["tenant_id"])
+    return await admin_service.get_offices(tenant_id=tenant_id)
+
+
+@router.post("/offices", response_model=OfficeItem, status_code=status.HTTP_201_CREATED)
+async def create_office(
+    data: CreateOfficeRequest,
+    current_user: Annotated[dict, Depends(require_role(["ADMIN"]))],
+    admin_service: Annotated[AdminDashboardService, Depends(get_admin_service)],
+):
+    """Adds a new office location with GPS geofence radius and authorized Wi-Fi BSSID list."""
+    tenant_id = uuid.UUID(current_user["tenant_id"])
+    success, error_msg, office_item = await admin_service.create_office(
+        tenant_id=tenant_id,
+        data=data,
+    )
+    if not success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
+    return office_item
+
+
+@router.delete("/offices/{office_id}")
+async def delete_office(
+    office_id: uuid.UUID,
+    current_user: Annotated[dict, Depends(require_role(["ADMIN"]))],
+    admin_service: Annotated[AdminDashboardService, Depends(get_admin_service)],
+):
+    """Deactivates an office location."""
+    tenant_id = uuid.UUID(current_user["tenant_id"])
+    success, error_msg = await admin_service.delete_office(tenant_id=tenant_id, office_id=office_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_msg)
+    return {"status": "SUCCESS", "message": "Office location deactivated", "office_id": str(office_id)}
+
+
+# ==============================================================================
+# 8. FIELD VISIT DESTINATIONS (CLIENT SITES)
+# ==============================================================================
+
+@router.get("/destinations", response_model=List[DestinationItem])
+async def list_destinations(
+    current_user: Annotated[dict, Depends(require_role(["ADMIN", "MANAGER"]))],
+    admin_service: Annotated[AdminDashboardService, Depends(get_admin_service)],
+):
+    """Lists all field visit destinations (hospitals, distributors, clients) with geofence settings."""
+    tenant_id = uuid.UUID(current_user["tenant_id"])
+    return await admin_service.get_destinations(tenant_id=tenant_id)
+
+
+@router.post("/destinations", response_model=DestinationItem, status_code=status.HTTP_201_CREATED)
+async def create_destination(
+    data: CreateDestinationRequest,
+    current_user: Annotated[dict, Depends(require_role(["ADMIN", "MANAGER"]))],
+    admin_service: Annotated[AdminDashboardService, Depends(get_admin_service)],
+):
+    """Creates a new client visit destination with coordinates, geofence radius, and minimum dwell duration."""
+    tenant_id = uuid.UUID(current_user["tenant_id"])
+    success, error_msg, dest_item = await admin_service.create_destination(
+        tenant_id=tenant_id,
+        data=data,
+    )
+    if not success:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
+    return dest_item
+
+
+@router.delete("/destinations/{destination_id}")
+async def delete_destination(
+    destination_id: uuid.UUID,
+    current_user: Annotated[dict, Depends(require_role(["ADMIN"]))],
+    admin_service: Annotated[AdminDashboardService, Depends(get_admin_service)],
+):
+    """Deactivates a field visit destination."""
+    tenant_id = uuid.UUID(current_user["tenant_id"])
+    success, error_msg = await admin_service.delete_destination(tenant_id=tenant_id, destination_id=destination_id)
+    if not success:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error_msg)
+    return {"status": "SUCCESS", "message": "Destination deactivated", "destination_id": str(destination_id)}
+
+
+# ==============================================================================
+# 9. FIELD BEATS MONITOR
+# ==============================================================================
+
+@router.get("/field-beats", response_model=List[FieldBeatItem])
+async def list_field_beats(
+    current_user: Annotated[dict, Depends(require_role(["ADMIN", "MANAGER"]))],
+    admin_service: Annotated[AdminDashboardService, Depends(get_admin_service)],
+):
+    """Lists real-time field visit stops and verification statuses across workforce."""
+    tenant_id = uuid.UUID(current_user["tenant_id"])
+    return await admin_service.get_field_beats(tenant_id=tenant_id)
+

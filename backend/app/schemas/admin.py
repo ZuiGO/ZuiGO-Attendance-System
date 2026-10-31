@@ -143,3 +143,67 @@ class TenantPolicyUpdate(BaseModel):
     odometer_discrepancy_threshold_pct: Optional[float] = Field(None, ge=1.0, le=50.0)
     car_reimbursement_rate: Optional[float] = Field(None, ge=0.0)
     bike_reimbursement_rate: Optional[float] = Field(None, ge=0.0)
+
+
+class OfficeItem(BaseModel):
+    id: str
+    name: str
+    address: Optional[str] = None
+    latitude: float
+    longitude: float
+    allowed_radius_meters: int
+    allowed_bssid_list: List[str] = []
+    kiosk_api_key: Optional[str] = None
+    is_active: bool
+
+
+class CreateOfficeRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=150)
+    address: Optional[str] = None
+    latitude: float = Field(..., ge=-90.0, le=90.0)
+    longitude: float = Field(..., ge=-180.0, le=180.0)
+    allowed_radius_meters: int = Field(default=50, ge=10, le=500)
+    allowed_bssid_list: List[str] = []
+    kiosk_api_key: Optional[str] = None
+
+
+class DestinationItem(BaseModel):
+    id: str
+    name: str
+    client_type: str
+    contact_person: Optional[str] = None
+    contact_phone: Optional[str] = None
+    otp_channel: str = "SMS"
+    address: Optional[str] = None
+    latitude: float
+    longitude: float
+    geofence_radius_meters: int = 75
+    min_dwell_minutes: int = 30
+    is_active: bool
+
+
+class CreateDestinationRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=255)
+    client_type: str = Field(default="HOSPITAL")
+    contact_person: Optional[str] = None
+    contact_phone: Optional[str] = None
+    otp_channel: str = Field(default="SMS")
+    address: Optional[str] = None
+    latitude: float = Field(..., ge=-90.0, le=90.0)
+    longitude: float = Field(..., ge=-180.0, le=180.0)
+    geofence_radius_meters: int = Field(default=75, ge=10, le=1000)
+    min_dwell_minutes: int = Field(default=30, ge=5, le=180)
+
+
+class FieldBeatItem(BaseModel):
+    id: str
+    destination_name: str
+    client_type: str
+    contact_person: Optional[str] = None
+    contact_phone: Optional[str] = None
+    employee_name: str
+    geofence_status: str
+    dwell_status: str
+    otp_status: str
+    status: str
+

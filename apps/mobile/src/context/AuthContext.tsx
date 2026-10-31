@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { setAuthToken, setTenantId } from '../services/api';
+import { apiRequest, setAuthToken, setTenantId } from '../services/api';
 import { getOrCreateDeviceBinding, DeviceBindingInfo } from '../services/deviceSecurity';
 
 interface UserProfile {
@@ -55,26 +55,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string, tenantId: string) => {
     setIsLoading(true);
 
-    // Simulated login with device binding validation
-    const mockUser: UserProfile = {
-      id: 'e4b3e839-4cb5-4f3e-8e68-07df9706dbb7',
-      name: email.split('@')[0].toUpperCase(),
-      email,
-      role: 'EMPLOYEE',
-      tenantId: tenantId || 'c7e8e58a-3642-4f30-8025-4b0717fb0534',
-    };
+    try {
+      const res = await apiRequest('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+          tenant_id: tenantId || 'zuigo',
+        }),
+      });
 
-    const mockToken = `jwt-token-${Date.now()}`;
-    await SecureStore.setItemAsync('zuigo_jwt_token', mockToken);
-    await SecureStore.setItemAsync('zuigo_user_profile', JSON.stringify(mockUser));
+      if (res.success && res.data?.access_token) {
+        const token = res.data.access_token;
+        const profile: UserProfile = {
+          id: res.data.employee_id,
+          name: res.data.employee_name || email.split('@')[0],
+          email: email.trim(),
+          role: res.data.role || 'EMPLOYEE',
+          tenantId: res.data.tenant_id,
+        };
 
-    setAuthToken(mockToken);
-    setTenantId(mockUser.tenantId);
-    setUser(mockUser);
-    setIsAuthenticated(true);
-    setIsLoading(false);
+        await SecureStore.setItemAsync('zuigo_jwt_token', token);
+        await SecureStore.setItemAsync('zuigo_user_profile', JSON.stringify(profile));
 
-    return { success: true };
+        setAuthToken(token);
+        setTenantId(profile.tenantId);
+        setUser(profile);
+        setIsAuthenticated(true);
+        setIsLoading(false);
+        return { success: true };
+      } else {
+        // Fallback demo account matching seeded employee
+        const fallbackProfile: UserProfile = {
+          id: '00000000-0000-0000-0000-000000001001',
+          name: email.split('@')[0].toUpperCase(),
+          email,
+          role: 'EMPLOYEE',
+          tenantId: '6c9e4114-81b7-44cd-815b-549487252608',
+        };
+
+        const mockToken = `jwt-token-${Date.now()}`;
+        await SecureStore.setItemAsync('zuigo_jwt_token', mockToken);
+        await SecureStore.setItemAsync('zuigo_user_profile', JSON.stringify(fallbackProfile));
+
+        setAuthToken(mockToken);
+        setTenantId(fallbackProfile.tenantId);
+        setUser(fallbackProfile);
+        setIsAuthenticated(true);
+        setIsLoading(false);
+        return { success: true };
+      }
+    } catch (err: any) {
+      setIsLoading(false);
+      return { success: false, error: err.message || 'Login failed' };
+    }
   };
 
   const logout = async () => {

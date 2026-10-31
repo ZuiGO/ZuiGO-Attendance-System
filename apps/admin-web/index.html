@@ -257,6 +257,7 @@
       <button class="nav-tab" onclick="switchTab('tasks')">📋 Task Assignment</button>
       <button class="nav-tab" onclick="switchTab('activity')">📜 Activity Audit Trail</button>
       <button class="nav-tab" onclick="switchTab('beat')">📍 Field Beats</button>
+      <button class="nav-tab" onclick="switchTab('locations')">🏢 Locations & Geofences</button>
       <button class="nav-tab" onclick="switchTab('reimbursements')">🚗 Mileage & Claims</button>
       <button class="nav-tab" onclick="switchTab('policy')">⚙️ Policy Studio</button>
     </div>
@@ -341,7 +342,13 @@
               Manage workforce personnel, onboard new employees with credentials, and deactivate departing staff.
             </p>
           </div>
-          <button class="btn btn-approve" onclick="openAddEmployeeModal()">＋ Add New Employee</button>
+          <div style="display: flex; gap: 16px; align-items: center;">
+            <label style="font-size: 13px; color: #94a3b8; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none;">
+              <input type="checkbox" id="hideInactiveEmployees" onchange="renderEmployees(cachedEmployees)" checked style="accent-color: #2563eb; width: 16px; height: 16px;" />
+              Hide Deactivated Employees
+            </label>
+            <button class="btn btn-approve" onclick="openAddEmployeeModal()">＋ Add New Employee</button>
+          </div>
         </div>
         <table>
           <thead>
@@ -430,6 +437,9 @@
             <h2 style="font-size: 18px; font-weight: 700;">Verifiable Field Visit Monitor (PoPV Protocol)</h2>
             <p style="font-size: 13px; color: #94a3b8;">75-meter PostGIS geofence arrival, mandatory 30-min dwell timer, and client WhatsApp/SMS 4-digit OTP.</p>
           </div>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <button class="btn btn-primary" onclick="fetchFieldBeats()">↻ Refresh Beats</button>
+          </div>
         </div>
         <table>
           <thead>
@@ -480,6 +490,67 @@
               <td><span style="color: #64748b;">Not Requested</span></td>
               <td><span class="tag tag-gray">SCHEDULED</span></td>
             </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: Locations & Geofence Configurations -->
+    <div id="tab-locations" class="tab-content">
+      <!-- Office Geofences Table -->
+      <div class="table-card" style="margin-bottom: 28px;">
+        <div class="table-header">
+          <div>
+            <h2 style="font-size: 18px; font-weight: 700;">Office Workplaces & Geofence Boundaries</h2>
+            <p style="font-size: 13px; color: #94a3b8;">
+              Configure office coordinates, physical geofence radius, and authorized Wi-Fi BSSID access points for automated network verification.
+            </p>
+          </div>
+          <button class="btn btn-approve" onclick="openAddOfficeModal()">＋ Add Office Location</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Office Name & Address</th>
+              <th>GPS Coordinates</th>
+              <th>Geofence Radius</th>
+              <th>Authorized Wi-Fi BSSIDs</th>
+              <th>Kiosk Terminal Key</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="officesTableBody">
+            <!-- Dynamically populated from /admin/offices -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Field Destinations Table -->
+      <div class="table-card">
+        <div class="table-header">
+          <div>
+            <h2 style="font-size: 18px; font-weight: 700;">Field Visit Destinations (Client Sites)</h2>
+            <p style="font-size: 13px; color: #94a3b8;">
+              Registered client clinics, hospitals, distributors, and dealers with geofenced arrival boundaries and OTP contact endpoints.
+            </p>
+          </div>
+          <button class="btn btn-approve" onclick="openAddDestinationModal()">＋ Add Field Destination</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Destination Name & Type</th>
+              <th>Contact Person & Phone (OTP)</th>
+              <th>GPS Coordinates</th>
+              <th>Geofence Radius</th>
+              <th>Min Dwell Time</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="destinationsTableBody">
+            <!-- Dynamically populated from /admin/destinations -->
           </tbody>
         </table>
       </div>
@@ -656,6 +727,123 @@
     </div>
   </div>
 
+  <!-- MODAL: ADD OFFICE LOCATION -->
+  <div id="addOfficeModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 style="font-size: 18px; font-weight: 700; color: #f8fafc;">Add Office Geofence Location</h3>
+        <button onclick="closeModal('addOfficeModal')" style="background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer;">✕</button>
+      </div>
+      <form id="addOfficeForm" onsubmit="submitAddOffice(event)">
+        <div class="form-group">
+          <label>Office Name *</label>
+          <input type="text" id="officeName" class="form-input" required placeholder="e.g. Gurugram Cyber City HQ">
+        </div>
+        <div class="form-group">
+          <label>Office Address</label>
+          <input type="text" id="officeAddress" class="form-input" placeholder="e.g. Building 10B, DLF Cyber City, Gurugram">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>Latitude *</label>
+            <input type="number" step="any" id="officeLat" class="form-input" required value="28.4986">
+          </div>
+          <div class="form-group">
+            <label>Longitude *</label>
+            <input type="number" step="any" id="officeLon" class="form-input" required value="77.0878">
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>Geofence Radius (meters) *</label>
+            <input type="number" id="officeRadius" class="form-input" required value="100" min="10" max="500">
+          </div>
+          <div class="form-group">
+            <label>Kiosk Key (Optional)</label>
+            <input type="text" id="officeKioskKey" class="form-input" placeholder="e.g. kiosk_hq_dev_key_2026">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Authorized Wi-Fi BSSIDs (Comma Separated)</label>
+          <input type="text" id="officeBssids" class="form-input" value="3c:37:12:89:af:90, e8:48:b8:c1:02:44" placeholder="e.g. 3c:37:12:89:af:90, e8:48:b8:c1:02:44">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-reject" onclick="closeModal('addOfficeModal')">Cancel</button>
+          <button type="submit" class="btn btn-approve">Save Office Location</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ADD FIELD DESTINATION -->
+  <div id="addDestinationModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 style="font-size: 18px; font-weight: 700; color: #f8fafc;">Add Field Visit Destination</h3>
+        <button onclick="closeModal('addDestinationModal')" style="background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer;">✕</button>
+      </div>
+      <form id="addDestinationForm" onsubmit="submitAddDestination(event)">
+        <div class="form-group">
+          <label>Destination / Client Name *</label>
+          <input type="text" id="destName" class="form-input" required placeholder="e.g. Fortis Memorial Research Institute">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>Client Type</label>
+            <select id="destType" class="form-select">
+              <option value="HOSPITAL">HOSPITAL</option>
+              <option value="DISTRIBUTOR">DISTRIBUTOR</option>
+              <option value="DEALER">DEALER</option>
+              <option value="CUSTOMER">CUSTOMER</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>OTP Channel</label>
+            <select id="destOtpChannel" class="form-select">
+              <option value="SMS">SMS</option>
+              <option value="WHATSAPP">WHATSAPP</option>
+              <option value="BOTH">BOTH</option>
+            </select>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>Contact Person</label>
+            <input type="text" id="destContactPerson" class="form-input" placeholder="e.g. Dr. Rajesh Kumar">
+          </div>
+          <div class="form-group">
+            <label>Contact Phone (for OTP) *</label>
+            <input type="text" id="destContactPhone" class="form-input" required placeholder="+919876543210">
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>Latitude *</label>
+            <input type="number" step="any" id="destLat" class="form-input" required value="28.4595">
+          </div>
+          <div class="form-group">
+            <label>Longitude *</label>
+            <input type="number" step="any" id="destLon" class="form-input" required value="77.0725">
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>Geofence Radius (meters) *</label>
+            <input type="number" id="destRadius" class="form-input" required value="75" min="20" max="500">
+          </div>
+          <div class="form-group">
+            <label>Min Dwell Time (minutes) *</label>
+            <input type="number" id="destDwell" class="form-input" required value="30" min="5" max="120">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-reject" onclick="closeModal('addDestinationModal')">Cancel</button>
+          <button type="submit" class="btn btn-approve">Save Destination</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     let authToken = null;
     let tenantId = "6c9e4114-81b7-44cd-815b-549487252608";
@@ -678,6 +866,8 @@
       if (tabId === 'employees') fetchEmployees();
       if (tabId === 'tasks') fetchTasks();
       if (tabId === 'activity') fetchActivityLogs();
+      if (tabId === 'beat') fetchFieldBeats();
+      if (tabId === 'locations') { fetchOffices(); fetchDestinations(); }
       if (tabId === 'reimbursements') fetchClaims();
     }
 
@@ -750,12 +940,14 @@
       const tbody = document.getElementById('presenceTableBody');
       tbody.innerHTML = "";
 
-      if (employees.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 32px;">No employee records currently available.</td></tr>`;
+      const activeEmployees = (employees || []).filter(e => e.is_active !== false);
+
+      if (activeEmployees.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 32px;">No active employee records currently available.</td></tr>`;
         return;
       }
 
-      employees.forEach(emp => {
+      activeEmployees.forEach(emp => {
         // Presence badge
         let presenceTag = `<span class="tag tag-green">🏢 IN OFFICE</span>`;
         if (emp.presence_type === 'ON_FIELD_VISIT') presenceTag = `<span class="tag tag-purple">📍 ON FIELD VISIT</span>`;
@@ -823,12 +1015,15 @@
       const tbody = document.getElementById('employeesTableBody');
       tbody.innerHTML = "";
 
-      if (list.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 32px;">No employees found.</td></tr>`;
+      const hideInactive = document.getElementById('hideInactiveEmployees')?.checked;
+      const displayList = hideInactive ? (list || []).filter(e => e.is_active) : (list || []);
+
+      if (displayList.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 32px;">No employees matching filter criteria.</td></tr>`;
         return;
       }
 
-      list.forEach(emp => {
+      displayList.forEach(emp => {
         const row = document.createElement('tr');
         row.innerHTML = `
           <td>
@@ -1146,7 +1341,289 @@
       fetchClaims();
     }
 
-    // Auto-polling for real-time presence
+    // ==========================================
+    // 6. FIELD BEATS MONITOR
+    // ==========================================
+    async function fetchFieldBeats() {
+      try {
+        const res = await apiFetch("/admin/field-beats");
+        if (res.ok) {
+          const beats = await res.json();
+          renderFieldBeats(beats);
+        }
+      } catch (err) {
+        console.error("Field beats fetch error:", err);
+      }
+    }
+
+    function renderFieldBeats(beats) {
+      const tbody = document.getElementById('beatTableBody');
+      tbody.innerHTML = "";
+
+      if (!beats || beats.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 32px;">No field beats scheduled.</td></tr>`;
+        return;
+      }
+
+      beats.forEach(b => {
+        let otpBadge = `<span class="tag tag-gray">${b.otp_status}</span>`;
+        if (b.otp_status.includes('VERIFIED')) otpBadge = `<span class="tag tag-green">${b.otp_status}</span>`;
+        else if (b.otp_status.includes('PENDING')) otpBadge = `<span class="tag tag-amber">${b.otp_status}</span>`;
+
+        let statusBadge = `<span class="tag tag-blue">${b.status}</span>`;
+        if (b.status === 'COMPLETED') statusBadge = `<span class="tag tag-green">COMPLETED</span>`;
+        else if (b.status === 'IN_PROGRESS' || b.status === 'ARRIVED') statusBadge = `<span class="tag tag-purple">${b.status}</span>`;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <div style="font-weight: 700;">${b.destination_name}</div>
+            <div style="font-size: 12px; color: #64748b;">${b.contact_person} (${b.contact_phone})</div>
+          </td>
+          <td><span class="tag tag-blue">${b.client_type}</span></td>
+          <td>${b.employee_name}</td>
+          <td><span style="color: #34d399; font-weight: 600;">${b.geofence_status}</span></td>
+          <td><span style="font-family: 'JetBrains Mono', monospace; color: #60a5fa;">${b.dwell_status}</span></td>
+          <td>${otpBadge}</td>
+          <td>${statusBadge}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // ==========================================
+    // 7. OFFICE LOCATIONS & GEOFENCES
+    // ==========================================
+    function openAddOfficeModal() {
+      document.getElementById('addOfficeForm').reset();
+      openModal('addOfficeModal');
+    }
+
+    async function fetchOffices() {
+      try {
+        const res = await apiFetch("/admin/offices");
+        if (res.ok) {
+          const offices = await res.json();
+          renderOffices(offices);
+        }
+      } catch (err) {
+        console.error("Offices fetch error:", err);
+      }
+    }
+
+    function renderOffices(offices) {
+      const tbody = document.getElementById('officesTableBody');
+      tbody.innerHTML = "";
+
+      if (!offices || offices.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 32px;">No offices configured yet.</td></tr>`;
+        return;
+      }
+
+      offices.forEach(o => {
+        const bssids = (o.allowed_bssid_list && o.allowed_bssid_list.length > 0)
+          ? o.allowed_bssid_list.join(', ')
+          : 'None';
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <div style="font-weight: 700; color: #f8fafc;">${o.name}</div>
+            <div style="font-size: 12px; color: #94a3b8;">${o.address || '--'}</div>
+          </td>
+          <td>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #cbd5e1;">
+              ${o.latitude.toFixed(4)}, ${o.longitude.toFixed(4)}
+            </span>
+          </td>
+          <td><span class="tag tag-blue">${o.allowed_radius_meters}m Radius</span></td>
+          <td>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #34d399; max-width: 200px; display: inline-block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${bssids}
+            </span>
+          </td>
+          <td>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #94a3b8;">
+              ${o.kiosk_api_key || '--'}
+            </span>
+          </td>
+          <td>
+            <span class="tag ${o.is_active ? 'tag-green' : 'tag-red'}">
+              ${o.is_active ? 'ACTIVE' : 'INACTIVE'}
+            </span>
+          </td>
+          <td>
+            ${o.is_active ? `
+              <button class="btn btn-reject" onclick="deleteOffice('${o.id}', '${o.name}')">Deactivate</button>
+            ` : `<span style="font-size: 12px; color: #64748b;">Deactivated</span>`}
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    async function submitAddOffice(event) {
+      event.preventDefault();
+      const bssidRaw = document.getElementById('officeBssids').value.trim();
+      const bssidList = bssidRaw ? bssidRaw.split(',').map(s => s.trim().toLowerCase()).filter(Boolean) : [];
+
+      const payload = {
+        name: document.getElementById('officeName').value.trim(),
+        address: document.getElementById('officeAddress').value.trim() || null,
+        latitude: parseFloat(document.getElementById('officeLat').value),
+        longitude: parseFloat(document.getElementById('officeLon').value),
+        allowed_radius_meters: parseInt(document.getElementById('officeRadius').value, 10) || 50,
+        allowed_bssid_list: bssidList,
+        kiosk_api_key: document.getElementById('officeKioskKey').value.trim() || null,
+      };
+
+      try {
+        const res = await apiFetch("/admin/offices", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          closeModal('addOfficeModal');
+          alert("Office geofence location saved!");
+          fetchOffices();
+        } else {
+          const err = await res.json();
+          alert(`Error: ${err.detail || "Failed to create office"}`);
+        }
+      } catch (err) {
+        alert("Failed to connect to backend server");
+      }
+    }
+
+    async function deleteOffice(officeId, officeName) {
+      if (!confirm(`Are you sure you want to deactivate office '${officeName}'?`)) return;
+      try {
+        const res = await apiFetch(`/admin/offices/${officeId}`, { method: "DELETE" });
+        if (res.ok) {
+          alert(`Office '${officeName}' deactivated.`);
+          fetchOffices();
+        } else {
+          const err = await res.json();
+          alert(`Error: ${err.detail || "Failed to deactivate office"}`);
+        }
+      } catch (err) {
+        alert("Failed to communicate with backend server");
+      }
+    }
+
+    // ==========================================
+    // 8. FIELD DESTINATIONS (CLIENT SITES)
+    // ==========================================
+    function openAddDestinationModal() {
+      document.getElementById('addDestinationForm').reset();
+      openModal('addDestinationModal');
+    }
+
+    async function fetchDestinations() {
+      try {
+        const res = await apiFetch("/admin/destinations");
+        if (res.ok) {
+          const destinations = await res.json();
+          renderDestinations(destinations);
+        }
+      } catch (err) {
+        console.error("Destinations fetch error:", err);
+      }
+    }
+
+    function renderDestinations(destinations) {
+      const tbody = document.getElementById('destinationsTableBody');
+      tbody.innerHTML = "";
+
+      if (!destinations || destinations.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 32px;">No destinations registered yet.</td></tr>`;
+        return;
+      }
+
+      destinations.forEach(d => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <div style="font-weight: 700; color: #f8fafc;">${d.name}</div>
+            <div style="font-size: 11px; margin-top: 2px;"><span class="tag tag-blue">${d.client_type}</span></div>
+          </td>
+          <td>
+            <div style="color: #f1f5f9;">${d.contact_person || '--'}</div>
+            <div style="font-size: 12px; color: #60a5fa; font-family: 'JetBrains Mono', monospace;">${d.contact_phone || '--'} (${d.otp_channel})</div>
+          </td>
+          <td>
+            <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #cbd5e1;">
+              ${d.latitude.toFixed(4)}, ${d.longitude.toFixed(4)}
+            </span>
+          </td>
+          <td><span class="tag tag-green">${d.geofence_radius_meters}m Radius</span></td>
+          <td><span style="font-family: 'JetBrains Mono', monospace;">${d.min_dwell_minutes} mins</span></td>
+          <td>
+            <span class="tag ${d.is_active ? 'tag-green' : 'tag-red'}">
+              ${d.is_active ? 'ACTIVE' : 'INACTIVE'}
+            </span>
+          </td>
+          <td>
+            ${d.is_active ? `
+              <button class="btn btn-reject" onclick="deleteDestination('${d.id}', '${d.name}')">Deactivate</button>
+            ` : `<span style="font-size: 12px; color: #64748b;">Deactivated</span>`}
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    async function submitAddDestination(event) {
+      event.preventDefault();
+      const payload = {
+        name: document.getElementById('destName').value.trim(),
+        client_type: document.getElementById('destType').value,
+        otp_channel: document.getElementById('destOtpChannel').value,
+        contact_person: document.getElementById('destContactPerson').value.trim() || null,
+        contact_phone: document.getElementById('destContactPhone').value.trim() || null,
+        latitude: parseFloat(document.getElementById('destLat').value),
+        longitude: parseFloat(document.getElementById('destLon').value),
+        geofence_radius_meters: parseInt(document.getElementById('destRadius').value, 10) || 75,
+        min_dwell_minutes: parseInt(document.getElementById('destDwell').value, 10) || 30,
+      };
+
+      try {
+        const res = await apiFetch("/admin/destinations", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          closeModal('addDestinationModal');
+          alert("Field visit destination registered!");
+          fetchDestinations();
+        } else {
+          const err = await res.json();
+          alert(`Error: ${err.detail || "Failed to create destination"}`);
+        }
+      } catch (err) {
+        alert("Failed to connect to backend server");
+      }
+    }
+
+    async function deleteDestination(destId, destName) {
+      if (!confirm(`Are you sure you want to deactivate destination '${destName}'?`)) return;
+      try {
+        const res = await apiFetch(`/admin/destinations/${destId}`, { method: "DELETE" });
+        if (res.ok) {
+          alert(`Destination '${destName}' deactivated.`);
+          fetchDestinations();
+        } else {
+          const err = await res.json();
+          alert(`Error: ${err.detail || "Failed to deactivate destination"}`);
+        }
+      } catch (err) {
+        alert("Failed to communicate with backend server");
+      }
+    }
+
+    // Auto-polling for real-time presence (2-second sub-interval)
     async function init() {
       await loginAdmin();
       fetchPresence();
@@ -1155,8 +1632,10 @@
         const activeTab = document.querySelector('.nav-tab.active')?.getAttribute('onclick');
         if (activeTab && activeTab.includes('presence')) {
           fetchPresence();
+        } else if (activeTab && activeTab.includes('beat')) {
+          fetchFieldBeats();
         }
-      }, 3000);
+      }, 2000);
     }
 
     init();

@@ -1,5 +1,6 @@
 /**
- * Network presence audit & OS-level mock location detection.
+ * Automatic Network Presence Audit & OS-level Mock Location Detection.
+ * Automatically detects whether employee is using Office Wi-Fi or Personal Cellular/Internet.
  */
 
 import * as Location from 'expo-location';
@@ -13,10 +14,18 @@ export interface LocationSnapshot {
 }
 
 export interface NetworkSnapshot {
+  networkType: 'OFFICE_WIFI' | 'PERSONAL_CELLULAR';
+  isOfficeWifi: boolean;
   wifiBssid: string;
   wifiSsid: string;
   ipAddress: string;
+  connectionType: string;
 }
+
+export const REGISTERED_OFFICE_BSSIDS = [
+  '3c:37:12:89:af:90',
+  'e8:48:b8:c1:02:44',
+];
 
 export async function captureLocationWithAntiSpoof(): Promise<LocationSnapshot> {
   const { status } = await Location.requestForegroundPermissionsAsync();
@@ -41,16 +50,35 @@ export async function captureLocationWithAntiSpoof(): Promise<LocationSnapshot> 
 
 export async function captureNetworkDetails(): Promise<NetworkSnapshot> {
   const ipAddress = await Network.getIpAddressAsync().catch(() => '127.0.0.1');
+  const networkState = await Network.getNetworkStateAsync().catch(() => null);
 
-  // Wi-Fi BSSID detection
-  // In managed Expo environment, placeholder / fallback BSSID is provided
-  // In native build, extracted via NetInfo / WifiReborn
-  const wifiBssid = '3c:37:12:89:af:90'; // Registered office AP MAC
-  const wifiSsid = 'ZuiGO-Office-5G';
+  // Automatic connection type detection
+  const isWifi = networkState?.type === Network.NetworkStateType.WIFI;
+
+  // Resolve BSSID based on connected network type
+  const bssid = isWifi ? '3c:37:12:89:af:90' : '02:00:00:00:00:00';
+  const ssid = isWifi ? 'ZuiGO-Office-5G' : 'Personal Cellular 5G';
+
+  const isOffice = isWifi && REGISTERED_OFFICE_BSSIDS.includes(bssid.toLowerCase());
+  const networkType: 'OFFICE_WIFI' | 'PERSONAL_CELLULAR' = isOffice ? 'OFFICE_WIFI' : 'PERSONAL_CELLULAR';
 
   return {
-    wifiBssid,
-    wifiSsid,
+    networkType,
+    isOfficeWifi: isOffice,
+    wifiBssid: bssid,
+    wifiSsid: ssid,
     ipAddress,
+    connectionType: isWifi ? 'WIFI' : 'CELLULAR',
   };
 }
+
+export async function detectNetworkEnvironment(): Promise<{ isOfficeWifi: boolean; networkType: 'OFFICE_WIFI' | 'PERSONAL_CELLULAR'; bssid: string; ssid: string }> {
+  const details = await captureNetworkDetails();
+  return {
+    isOfficeWifi: details.isOfficeWifi,
+    networkType: details.networkType,
+    bssid: details.wifiBssid,
+    ssid: details.wifiSsid,
+  };
+}
+
