@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, FlatList, SafeAreaView, Alert } from 'react-native';
 import { ArrowLeft, Play, Pause, Square, Lock, Clock, CheckCircle2, AlertTriangle } from 'lucide-react-native';
 import { useAttendance } from '../context/AttendanceContext';
+import { apiRequest } from '../services/api';
 
 interface TaskItem {
   id: string;
@@ -66,7 +67,7 @@ export default function TaskStopwatchScreen({ onBack }: { onBack: () => void }) 
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleStartTask = (task: TaskItem) => {
+  const handleStartTask = async (task: TaskItem) => {
     if (!isClockedIn) {
       Alert.alert(
         'Attendance Required',
@@ -75,7 +76,36 @@ export default function TaskStopwatchScreen({ onBack }: { onBack: () => void }) 
       return;
     }
 
-    startTaskTimer('entry-' + Date.now(), task.id, task.title);
+    let entryId = 'entry-' + Date.now();
+    try {
+      if (task.id.length > 25) {
+        const res = await apiRequest('/tasks/timer/start', {
+          method: 'POST',
+          body: JSON.stringify({ task_id: task.id }),
+        });
+        if (res.data?.id) entryId = res.data.id;
+      }
+    } catch {
+      // Local timer fallback
+    }
+
+    startTaskTimer(entryId, task.id, task.title);
+  };
+
+  const handleStopTask = async () => {
+    if (activeTimer) {
+      try {
+        if (activeTimer.entryId.length > 25) {
+          await apiRequest('/tasks/timer/stop', {
+            method: 'POST',
+            body: JSON.stringify({ time_entry_id: activeTimer.entryId }),
+          });
+        }
+      } catch {
+        // Local stop fallback
+      }
+      stopTaskTimer();
+    }
   };
 
   return (
@@ -113,7 +143,7 @@ export default function TaskStopwatchScreen({ onBack }: { onBack: () => void }) 
             </Text>
 
             {activeTimer && (
-              <TouchableOpacity style={styles.stopButton} onPress={stopTaskTimer}>
+              <TouchableOpacity style={styles.stopButton} onPress={handleStopTask}>
                 <Square size={16} color="#ffffff" fill="#ffffff" />
                 <Text style={styles.stopButtonText}>Stop & Log Time</Text>
               </TouchableOpacity>
@@ -147,7 +177,7 @@ export default function TaskStopwatchScreen({ onBack }: { onBack: () => void }) 
                     isThisRunning ? styles.runningButton : styles.startButton,
                     !isClockedIn && styles.disabledButton,
                   ]}
-                  onPress={() => (isThisRunning ? stopTaskTimer() : handleStartTask(item))}
+                  onPress={() => (isThisRunning ? handleStopTask() : handleStartTask(item))}
                   disabled={!isClockedIn}
                 >
                   {isThisRunning ? (

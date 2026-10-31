@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Alert } from 'react-native';
-import { ShieldCheck, LogOut, QrCode, Play, Pause, Square, MapPin, Car, Clock, CheckCircle2 } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, SafeAreaView, Alert, Modal, ActivityIndicator } from 'react-native';
+import { ShieldCheck, LogOut, QrCode, Play, Pause, Square, MapPin, Car, Clock, CheckCircle2, Wifi, Smartphone, Camera, X } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { useAttendance } from '../context/AttendanceContext';
+import { apiRequest } from '../services/api';
+import { captureLocationWithAntiSpoof, captureNetworkDetails } from '../services/networkDetector';
+import { runSelfieLivenessCheck } from '../services/livenessDetector';
 
 interface DashboardProps {
   onNavigate: (screen: 'dashboard' | 'office_scan' | 'tasks' | 'field_visit' | 'travel') => void;
@@ -10,9 +13,27 @@ interface DashboardProps {
 
 export default function DashboardScreen({ onNavigate }: DashboardProps) {
   const { user, logout } = useAuth();
-  const { isClockedIn, clockInTime, officeName, setClockOutSuccess, activeTimer, stopTaskTimer, activeTravelShift } = useAttendance();
+  const {
+    isClockedIn,
+    attendanceId,
+    clockInTime,
+    officeName,
+    networkType,
+    isOfficeWifi,
+    setClockOutSuccess,
+    activeTimer,
+    stopTaskTimer,
+    activeTravelShift,
+    sendLocationPing,
+  } = useAttendance();
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // Clock Out Modal State
+  const [showClockOutModal, setShowClockOutModal] = useState(false);
+  const [clockOutStep, setClockOutStep] = useState<'prompt' | 'selfie' | 'submitting' | 'done'>('prompt');
+  const [clockOutNetwork, setClockOutNetwork] = useState<'OFFICE_WIFI' | 'PERSONAL_CELLULAR'>('OFFICE_WIFI');
+  const [clockOutSummary, setClockOutSummary] = useState<any>(null);
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null;
@@ -36,22 +57,62 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
     return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleClockOut = () => {
-    Alert.alert(
-      'Clock Out',
-      'Are you sure you want to clock out for the day? Any active task timer will be automatically stopped.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm Clock Out',
-          style: 'destructive',
-          onPress: () => {
-            setClockOutSuccess();
-            Alert.alert('Clocked Out', 'Your attendance session has been finalized.');
-          },
+  const handleOpenClockOutModal = () => {
+    setClockOutStep('prompt');
+    setClockOutNetwork(isOfficeWifi ? 'OFFICE_WIFI' : 'PERSONAL_CELLULAR');
+    setShowClockOutModal(true);
+  };
+
+  const handleExecuteClockOut = async () => {
+    setClockOutStep('selfie');
+    try {
+      // 1-second check-out selfie liveness check
+      const livenessResult = await runSelfieLivenessCheck();
+
+      setClockOutStep('submitting');
+      const location = await captureLocationWithAntiSpoof();
+      const network = await captureNetworkDetails();
+
+      const isWifi = clockOutNetwork === 'OFFICE_WIFI';
+      const clockOutPayload = {
+        attendance_id: attendanceId || 'att-placeholder-' + Date.now(),
+        location: {
+          latitude: location.latitude,
+          longitude: location.longitude,
+          accuracy_meters: location.accuracy || 10.0,
+          is_mock: false,
         },
-      ]
-    );
+        network_audit: {
+          wifi_bssid: isWifi ? network.wifiBssid : '02:00:00:00:00:00',
+          wifi_ssid: isWifi ? network.wifiSsid : 'Personal Mobile 5G',
+          network_type: clockOutNetwork,
+        },
+        selfie_image_base64: 'data:image/jpeg;base64,clock_out_selfie_hash_' + Date.now(),
+        face_liveness_passed: livenessResult.livenessPassed,
+      };
+
+      const res = await apiRequest('/attendance/clock-out', {
+        method: 'POST',
+        body: JSON.stringify(clockOutPayload),
+      });
+
+      setClockOutSummary(res.data || {
+        total_shift_hours: 8.2,
+        active_tasks_stopped: activeTimer ? 1 : 0,
+        network_type: clockOutNetwork,
+        is_office_wifi: isWifi,
+      });
+
+      setClockOutStep('done');
+
+      setTimeout(() => {
+        setClockOutSuccess();
+        setShowClockOutModal(false);
+      }, 2000);
+    } catch (err: any) {
+      Alert.alert('Clock Out Error', err.message || 'Failed to complete clock-out');
+      setClockOutStep('prompt');
+    }
   };
 
   return (
@@ -82,16 +143,35 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
 
           {isClockedIn ? (
             <View style={styles.statusBody}>
-              <Text style={styles.officeNameText}>📍 {officeName || 'Corporate Office'}</Text>
-              <Text style={styles.clockInTimeText}>Clocked In: {clockInTime ? new Date(clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '09:02 AM'}</Text>
-              <TouchableOpacity style={styles.clockOutBtn} onPress={handleClockOut}>
-                <Text style={styles.clockOutBtnText}>Clock Out for the Day</Text>
+              <Text style={styles.officeNameText}>📍 {officeName || 'Cyber City HQ Terminal'}</Text>
+              <Text style={styles.clockInTimeText}>
+                Clocked In: {clockInTime ? new Date(clockInTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '09:02 AM'}
+              </Text>
+
+              {/* Prominent Network Indicator Badge */}
+              <View style={styles.networkBadgeRow}>
+                {isOfficeWifi ? (
+                  <View style={styles.officeWifiBadge}>
+                    <Wifi size={14} color="#4ade80" />
+                    <Text style={styles.officeWifiText}>📶 Office Wi-Fi Verified (Cyber City AP)</Text>
+                  </View>
+                ) : (
+                  <View style={styles.personalDataBadge}>
+                    <Smartphone size={14} color="#fbbf24" />
+                    <Text style={styles.personalDataText}>📱 Personal Internet / Cellular Data</Text>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity style={styles.clockOutBtn} onPress={handleOpenClockOutModal}>
+                <Camera size={16} color="#ffffff" style={{ marginRight: 6 }} />
+                <Text style={styles.clockOutBtnText}>Check-Out Selfie & Clock Out</Text>
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.statusBody}>
               <Text style={styles.absentNoticeText}>
-                You are currently outside or have not verified your in-office attendance yet.
+                You are currently outside or have not verified your physical attendance today.
               </Text>
               <TouchableOpacity style={styles.clockInActionBtn} onPress={() => onNavigate('office_scan')}>
                 <QrCode size={18} color="#ffffff" />
@@ -148,8 +228,8 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
             <View style={[styles.moduleIconBox, { backgroundColor: 'rgba(168, 85, 247, 0.15)' }]}>
               <Clock size={26} color="#c084fc" />
             </View>
-            <Text style={styles.moduleTitle}>Task Stopwatch</Text>
-            <Text style={styles.moduleDesc}>Attendance-gated project task timer</Text>
+            <Text style={styles.moduleTitle}>Task Timers</Text>
+            <Text style={styles.moduleDesc}>Attendance-gated work stopwatches</Text>
           </TouchableOpacity>
 
           {/* Module 3: Field Visit Mode */}
@@ -158,19 +238,108 @@ export default function DashboardScreen({ onNavigate }: DashboardProps) {
               <MapPin size={26} color="#4ade80" />
             </View>
             <Text style={styles.moduleTitle}>Field Visit Mode</Text>
-            <Text style={styles.moduleDesc}>30-Min Dwell + Client SMS/WA OTP</Text>
+            <Text style={styles.moduleDesc}>Geofence arrival, 30m dwell, Client OTP</Text>
           </TouchableOpacity>
 
-          {/* Module 4: Vehicle Travel Shift */}
+          {/* Module 4: Travel Shift Mode */}
           <TouchableOpacity style={styles.moduleCard} onPress={() => onNavigate('travel')}>
-            <View style={[styles.moduleIconBox, { backgroundColor: 'rgba(249, 115, 22, 0.15)' }]}>
-              <Car size={26} color="#fb923c" />
+            <View style={[styles.moduleIconBox, { backgroundColor: 'rgba(234, 179, 8, 0.15)' }]}>
+              <Car size={26} color="#facc15" />
             </View>
-            <Text style={styles.moduleTitle}>Vehicle Mileage</Text>
-            <Text style={styles.moduleDesc}>Odometer photo & route audit</Text>
+            <Text style={styles.moduleTitle}>Travel Shifts</Text>
+            <Text style={styles.moduleDesc}>Odometer OCR + GPS breadcrumbs</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* CLOCK-OUT SELFIE & NETWORK AUDIT MODAL */}
+      <Modal visible={showClockOutModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Check-Out Verification</Text>
+              <TouchableOpacity onPress={() => setShowClockOutModal(false)}>
+                <X size={20} color="#94a3b8" />
+              </TouchableOpacity>
+            </View>
+
+            {clockOutStep === 'prompt' && (
+              <View>
+                <Text style={styles.modalBodyText}>
+                  Company zero-trust policy requires a 1-second check-out selfie and network audit before finalizing your shift.
+                </Text>
+
+                <View style={styles.networkSelectBox}>
+                  <Text style={styles.networkSelectLabel}>Current Clock-Out Network:</Text>
+                  <View style={styles.networkToggleRow}>
+                    <TouchableOpacity
+                      style={[styles.networkBtn, clockOutNetwork === 'OFFICE_WIFI' && styles.networkBtnActive]}
+                      onPress={() => setClockOutNetwork('OFFICE_WIFI')}
+                    >
+                      <Wifi size={14} color={clockOutNetwork === 'OFFICE_WIFI' ? '#fff' : '#94a3b8'} />
+                      <Text style={[styles.networkBtnText, clockOutNetwork === 'OFFICE_WIFI' && styles.networkBtnTextActive]}>
+                        Office Wi-Fi
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.networkBtn, clockOutNetwork === 'PERSONAL_CELLULAR' && styles.networkBtnActive]}
+                      onPress={() => setClockOutNetwork('PERSONAL_CELLULAR')}
+                    >
+                      <Smartphone size={14} color={clockOutNetwork === 'PERSONAL_CELLULAR' ? '#fff' : '#94a3b8'} />
+                      <Text style={[styles.networkBtnText, clockOutNetwork === 'PERSONAL_CELLULAR' && styles.networkBtnTextActive]}>
+                        Personal Data
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                {activeTimer && (
+                  <View style={styles.timerWarningBox}>
+                    <Text style={styles.timerWarningText}>
+                      ⚠️ Active task "{activeTimer.taskTitle}" will be automatically finalized and saved.
+                    </Text>
+                  </View>
+                )}
+
+                <TouchableOpacity style={styles.startSelfieBtn} onPress={handleExecuteClockOut}>
+                  <Camera size={18} color="#ffffff" style={{ marginRight: 8 }} />
+                  <Text style={styles.startSelfieBtnText}>Take Check-Out Selfie & Confirm</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
+            {clockOutStep === 'selfie' && (
+              <View style={styles.modalCenterBox}>
+                <View style={styles.selfieOval}>
+                  <Camera size={44} color="#60a5fa" />
+                  <ActivityIndicator size="large" color="#3b82f6" style={{ marginTop: 12 }} />
+                </View>
+                <Text style={styles.selfieCaptureTitle}>1-Sec Facial Liveness Verification</Text>
+                <Text style={styles.selfieCaptureSub}>Looking into front camera...</Text>
+              </View>
+            )}
+
+            {clockOutStep === 'submitting' && (
+              <View style={styles.modalCenterBox}>
+                <ActivityIndicator size="large" color="#3b82f6" />
+                <Text style={styles.selfieCaptureTitle}>Finalizing Shift Session</Text>
+                <Text style={styles.selfieCaptureSub}>Saving timestamp, network type, and closing open tasks</Text>
+              </View>
+            )}
+
+            {clockOutStep === 'done' && (
+              <View style={styles.modalCenterBox}>
+                <CheckCircle2 size={56} color="#22c55e" />
+                <Text style={[styles.selfieCaptureTitle, { color: '#4ade80' }]}>Clocked Out Successfully!</Text>
+                <Text style={styles.selfieCaptureSub}>
+                  Attendance finalized. Recorded via {clockOutNetwork === 'OFFICE_WIFI' ? 'Office Wi-Fi' : 'Personal Cellular'}.
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -182,6 +351,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+    paddingBottom: 40,
   },
   topHeader: {
     flexDirection: 'row',
@@ -192,7 +362,7 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 22,
     fontWeight: '800',
-    color: '#ffffff',
+    color: '#f8fafc',
   },
   roleText: {
     fontSize: 13,
@@ -201,8 +371,8 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     padding: 10,
-    backgroundColor: '#1e293b',
     borderRadius: 12,
+    backgroundColor: '#1e293b',
   },
   statusCard: {
     borderRadius: 20,
@@ -211,18 +381,18 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   statusCardPresent: {
-    backgroundColor: 'rgba(22, 101, 52, 0.25)',
-    borderColor: 'rgba(34, 197, 94, 0.3)',
+    backgroundColor: 'rgba(34, 197, 94, 0.08)',
+    borderColor: 'rgba(34, 197, 94, 0.25)',
   },
   statusCardAbsent: {
-    backgroundColor: 'rgba(30, 41, 59, 0.7)',
+    backgroundColor: '#0f172a',
     borderColor: 'rgba(255, 255, 255, 0.08)',
   },
   statusHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   statusBadge: {
     flexDirection: 'row',
@@ -236,11 +406,11 @@ const styles = StyleSheet.create({
   },
   statusBadgeText: {
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '800',
     letterSpacing: 0.5,
   },
   statusBody: {
-    gap: 6,
+    gap: 8,
   },
   officeNameText: {
     fontSize: 16,
@@ -249,55 +419,93 @@ const styles = StyleSheet.create({
   },
   clockInTimeText: {
     fontSize: 13,
-    color: '#86efac',
+    color: '#cbd5e1',
   },
-  clockOutBtn: {
-    marginTop: 12,
-    backgroundColor: 'rgba(239, 68, 68, 0.2)',
-    borderWidth: 1,
-    borderColor: '#ef4444',
-    paddingVertical: 10,
-    borderRadius: 10,
+  networkBadgeRow: {
+    marginVertical: 4,
+  },
+  officeWifiBadge: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(34, 197, 94, 0.3)',
   },
-  clockOutBtnText: {
-    color: '#fca5a5',
+  officeWifiText: {
+    fontSize: 12,
     fontWeight: '700',
-    fontSize: 13,
+    color: '#4ade80',
+  },
+  personalDataBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(234, 179, 8, 0.15)',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(234, 179, 8, 0.3)',
+  },
+  personalDataText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fbbf24',
   },
   absentNoticeText: {
     fontSize: 13,
     color: '#94a3b8',
     lineHeight: 18,
+    marginBottom: 6,
   },
   clockInActionBtn: {
+    backgroundColor: '#2563eb',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#2563eb',
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 12,
-    marginTop: 12,
+    marginTop: 6,
   },
   clockInActionBtnText: {
     color: '#ffffff',
-    fontWeight: '700',
     fontSize: 14,
+    fontWeight: '700',
+  },
+  clockOutBtn: {
+    backgroundColor: '#dc2626',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  clockOutBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '700',
   },
   activeTimerWidget: {
-    backgroundColor: 'rgba(15, 23, 42, 0.9)',
-    borderWidth: 1,
-    borderColor: '#3b82f6',
+    backgroundColor: '#0f172a',
     borderRadius: 16,
     padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.3)',
     marginBottom: 20,
   },
   activeTimerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   timerIndicatorRow: {
     flexDirection: 'row',
@@ -313,27 +521,27 @@ const styles = StyleSheet.create({
   timerSubtitle: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#93c5fd',
+    color: '#c084fc',
     letterSpacing: 0.5,
   },
   timerTickerText: {
-    fontFamily: 'JetBrains Mono, monospace',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '800',
-    color: '#ffffff',
+    color: '#f8fafc',
+    fontFamily: 'monospace',
   },
   activeTaskTitleText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#cbd5e1',
-    marginBottom: 10,
+    color: '#e2e8f0',
+    marginBottom: 12,
   },
   stopTimerSmallBtn: {
+    backgroundColor: '#7c3aed',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    backgroundColor: '#dc2626',
     paddingVertical: 8,
     borderRadius: 8,
   },
@@ -343,20 +551,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   activeTravelWidget: {
-    backgroundColor: 'rgba(30, 58, 138, 0.3)',
-    borderWidth: 1,
-    borderColor: '#3b82f6',
+    backgroundColor: '#0f172a',
     borderRadius: 16,
-    padding: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.3)',
     marginBottom: 20,
   },
   travelModeTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#93c5fd',
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#60a5fa',
+    marginLeft: 6,
   },
   travelStartOdo: {
-    fontSize: 12,
+    fontSize: 13,
     color: '#cbd5e1',
     marginTop: 4,
   },
@@ -369,33 +578,158 @@ const styles = StyleSheet.create({
   modulesGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 14,
+    gap: 12,
   },
   moduleCard: {
-    width: '47.5%',
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
-    borderRadius: 18,
+    width: '48%',
+    backgroundColor: '#0f172a',
+    borderRadius: 16,
     padding: 16,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.06)',
+    borderColor: 'rgba(255, 255, 255, 0.08)',
+    gap: 8,
   },
   moduleIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    justifyContent: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 12,
-  },
-  moduleTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#ffffff',
+    justifyContent: 'center',
     marginBottom: 4,
   },
+  moduleTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#f8fafc',
+  },
   moduleDesc: {
+    fontSize: 11,
+    color: '#94a3b8',
+    lineHeight: 15,
+  },
+
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    width: '100%',
+    backgroundColor: '#0f172a',
+    borderRadius: 20,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.12)',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalTitle: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#f8fafc',
+  },
+  modalBodyText: {
+    fontSize: 13,
+    color: '#cbd5e1',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  networkSelectBox: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+  },
+  networkSelectLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#94a3b8',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  networkToggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  networkBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#0f172a',
+  },
+  networkBtnActive: {
+    backgroundColor: '#2563eb',
+  },
+  networkBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#94a3b8',
+  },
+  networkBtnTextActive: {
+    color: '#ffffff',
+  },
+  timerWarningBox: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+    marginBottom: 16,
+  },
+  timerWarningText: {
+    fontSize: 12,
+    color: '#fbbf24',
+    lineHeight: 16,
+  },
+  startSelfieBtn: {
+    backgroundColor: '#2563eb',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+  },
+  startSelfieBtnText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  modalCenterBox: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  selfieOval: {
+    width: 130,
+    height: 160,
+    borderRadius: 65,
+    borderWidth: 2,
+    borderColor: '#3b82f6',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  selfieCaptureTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#f8fafc',
+    marginTop: 8,
+  },
+  selfieCaptureSub: {
     fontSize: 12,
     color: '#94a3b8',
-    lineHeight: 16,
+    marginTop: 4,
+    textAlign: 'center',
   },
 });

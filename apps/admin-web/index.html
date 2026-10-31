@@ -16,7 +16,7 @@
       min-height: 100vh;
     }
     header {
-      background: rgba(15, 23, 42, 0.85);
+      background: rgba(15, 23, 42, 0.95);
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       padding: 16px 36px;
       display: flex;
@@ -25,7 +25,7 @@
       position: sticky;
       top: 0;
       z-index: 50;
-      backdrop-filter: blur(12px);
+      backdrop-filter: blur(16px);
     }
     .brand {
       display: flex;
@@ -42,14 +42,14 @@
     }
     .nav-tabs {
       display: flex;
-      gap: 8px;
+      gap: 6px;
       background: rgba(30, 41, 59, 0.6);
       padding: 6px;
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.05);
     }
     .nav-tab {
-      padding: 8px 18px;
+      padding: 8px 16px;
       border-radius: 8px;
       font-size: 13px;
       font-weight: 600;
@@ -58,21 +58,25 @@
       border: none;
       background: transparent;
       transition: all 0.2s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
+    .nav-tab:hover { color: #f8fafc; }
     .nav-tab.active {
       background: #2563eb;
       color: white;
     }
     .container {
-      max-width: 1400px;
+      max-width: 1440px;
       margin: 0 auto;
       padding: 28px 36px;
     }
     .stats-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       gap: 20px;
-      margin-bottom: 32px;
+      margin-bottom: 28px;
     }
     .stat-card {
       background: rgba(15, 23, 42, 0.6);
@@ -116,7 +120,7 @@
       text-align: left;
     }
     th {
-      padding: 14px 24px;
+      padding: 14px 20px;
       font-size: 12px;
       font-weight: 600;
       color: #64748b;
@@ -125,9 +129,10 @@
       border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     }
     td {
-      padding: 16px 24px;
+      padding: 16px 20px;
       font-size: 14px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      vertical-align: middle;
     }
     .tag {
       padding: 4px 10px;
@@ -136,11 +141,15 @@
       font-weight: 700;
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
     }
     .tag-green { background: rgba(16, 185, 129, 0.15); color: #34d399; }
     .tag-amber { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
     .tag-blue { background: rgba(59, 130, 246, 0.15); color: #60a5fa; }
+    .tag-purple { background: rgba(168, 85, 247, 0.15); color: #c084fc; }
+    .tag-gray { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+    .tag-red { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+    
     .btn {
       padding: 8px 16px;
       border-radius: 8px;
@@ -149,21 +158,87 @@
       cursor: pointer;
       border: none;
       transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
     .btn-approve {
       background: #10b981;
       color: white;
     }
     .btn-approve:hover { background: #059669; }
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+    .btn-primary:hover { background: #1d4ed8; }
     .btn-reject {
       background: rgba(239, 68, 68, 0.2);
       color: #f87171;
       border: 1px solid rgba(239, 68, 68, 0.3);
-      margin-left: 6px;
     }
     .btn-reject:hover { background: rgba(239, 68, 68, 0.4); }
+    
     .tab-content { display: none; }
     .tab-content.active { display: block; }
+
+    /* Modal styling */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    .modal-card {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 18px;
+      padding: 28px;
+      width: 100%;
+      max-width: 520px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .form-group {
+      margin-bottom: 16px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-input, .form-select {
+      width: 100%;
+      background: #1e293b;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: #f8fafc;
+      font-size: 14px;
+      outline: none;
+    }
+    .form-input:focus, .form-select:focus {
+      border-color: #3b82f6;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+      margin-top: 24px;
+    }
   </style>
 </head>
 <body>
@@ -177,14 +252,17 @@
     </div>
 
     <div class="nav-tabs">
-      <button class="nav-tab active" onclick="switchTab('presence')">Live Presence</button>
-      <button class="nav-tab" onclick="switchTab('beat')">Field Beat Monitor</button>
-      <button class="nav-tab" onclick="switchTab('reimbursements')">Travel Claims & Anti-Fraud</button>
-      <button class="nav-tab" onclick="switchTab('policy')">Policy Studio</button>
+      <button class="nav-tab active" onclick="switchTab('presence')">🟢 Live Presence</button>
+      <button class="nav-tab" onclick="switchTab('employees')">👥 Employee Management</button>
+      <button class="nav-tab" onclick="switchTab('tasks')">📋 Task Assignment</button>
+      <button class="nav-tab" onclick="switchTab('activity')">📜 Activity Audit Trail</button>
+      <button class="nav-tab" onclick="switchTab('beat')">📍 Field Beats</button>
+      <button class="nav-tab" onclick="switchTab('reimbursements')">🚗 Mileage & Claims</button>
+      <button class="nav-tab" onclick="switchTab('policy')">⚙️ Policy Studio</button>
     </div>
 
     <div style="display: flex; align-items: center; gap: 12px;">
-      <span class="tag tag-green">● BACKEND CONNECTED</span>
+      <span class="tag tag-green" id="connectionBadge">● BACKEND CONNECTED</span>
       <span style="font-size: 13px; font-weight: 600; color: #e2e8f0;">Jayesh Admin</span>
     </div>
   </header>
@@ -195,22 +273,27 @@
       <div class="stat-card">
         <div class="stat-label">Total Expected Staff</div>
         <div class="stat-value" id="statExpected">4</div>
-        <div class="stat-sub" style="color: #60a5fa;">Enrolled Employees</div>
+        <div class="stat-sub" style="color: #60a5fa;">Enrolled in Organization</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Physically Clocked In</div>
+        <div class="stat-label">Present in Office</div>
         <div class="stat-value" style="color: #34d399;" id="statPresent">3</div>
-        <div class="stat-sub">75% Office Presence Rate</div>
+        <div class="stat-sub" id="statPresenceRate">75% Office Presence Rate</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Active Field Beats</div>
-        <div class="stat-value" style="color: #60a5fa;">2</div>
-        <div class="stat-sub" style="color: #93c5fd;">4 Major Destinations Assigned</div>
+        <div class="stat-label">On Field Beat / Visit</div>
+        <div class="stat-value" style="color: #c084fc;" id="statField">1</div>
+        <div class="stat-sub" style="color: #e9d5ff;">Customer Site Dwell Active</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Mileage Fraud Alert</div>
-        <div class="stat-value" style="color: #f59e0b;">1</div>
-        <div class="stat-sub" style="color: #fbbf24;">⚠️ 54.8% Discrepancy Flagged</div>
+        <div class="stat-label">Currently Absent</div>
+        <div class="stat-value" style="color: #f87171;" id="statAbsent">0</div>
+        <div class="stat-sub" style="color: #fca5a5;">Not Clocked In Today</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Mileage Discrepancy Alerts</div>
+        <div class="stat-value" style="color: #f59e0b;" id="statDiscrepancy">1</div>
+        <div class="stat-sub" style="color: #fbbf24;">⚠️ >15% Odometer gap flagged</div>
       </div>
     </div>
 
@@ -219,66 +302,127 @@
       <div class="table-card">
         <div class="table-header">
           <div>
-            <h2 style="font-size: 18px; font-weight: 700;">Live Office Presence & Task Tracking Board</h2>
-            <p style="font-size: 13px; color: #94a3b8;">Real-time presence validated via 15-sec dynamic QR, Wi-Fi BSSID, and AI selfie liveness.</p>
+            <h2 style="font-size: 18px; font-weight: 700;">Live Office Presence & Activity Command Center</h2>
+            <p style="font-size: 13px; color: #94a3b8;">
+              Live presence status (In-Office, Field Visit, Transit, Absent), Wi-Fi vs Personal Internet network detection, real-time stopwatch, and GPS telemetry.
+            </p>
           </div>
-          <button class="btn btn-approve" onclick="fetchPresence()">↻ Refresh</button>
+          <div style="display: flex; gap: 10px; align-items: center;">
+            <span style="font-size: 12px; color: #94a3b8;">Auto-refreshing every 3s</span>
+            <button class="btn btn-primary" onclick="fetchPresence()">↻ Refresh Now</button>
+          </div>
         </div>
         <table>
           <thead>
             <tr>
               <th>Employee</th>
-              <th>Department</th>
-              <th>Office</th>
-              <th>Clock-In Time</th>
-              <th>Current Active Task</th>
+              <th>Department & Office</th>
+              <th>Presence State</th>
+              <th>Network Connection</th>
+              <th>Current Activity</th>
               <th>Stopwatch Ticker</th>
-              <th>Status</th>
+              <th>Live Location Coordinates</th>
             </tr>
           </thead>
           <tbody id="presenceTableBody">
-            <tr>
-              <td>
-                <div style="font-weight: 700;">Alex Johnson</div>
-                <div style="font-size: 12px; color: #64748b; font-family: 'JetBrains Mono', monospace;">EMP-1001</div>
-              </td>
-              <td>Field Operations</td>
-              <td>Cyber City HQ</td>
-              <td>09:02 AM</td>
-              <td>Biomedical Sensor Calibration</td>
-              <td><span style="font-family: 'JetBrains Mono', monospace; color: #60a5fa;">1h 14m</span></td>
-              <td><span class="tag tag-green">● WORKING</span></td>
-            </tr>
-            <tr>
-              <td>
-                <div style="font-weight: 700;">Priya Sharma</div>
-                <div style="font-size: 12px; color: #64748b; font-family: 'JetBrains Mono', monospace;">EMP-1002</div>
-              </td>
-              <td>Hospital Relations</td>
-              <td>Cyber City HQ</td>
-              <td>09:15 AM</td>
-              <td>Doctor Interview & Feedback</td>
-              <td><span style="font-family: 'JetBrains Mono', monospace; color: #60a5fa;">42m</span></td>
-              <td><span class="tag tag-green">● WORKING</span></td>
-            </tr>
-            <tr>
-              <td>
-                <div style="font-weight: 700;">Rahul Verma</div>
-                <div style="font-size: 12px; color: #64748b; font-family: 'JetBrains Mono', monospace;">EMP-1003</div>
-              </td>
-              <td>Field Operations</td>
-              <td>Cyber City HQ</td>
-              <td>09:30 AM</td>
-              <td>Travel Shift in Progress</td>
-              <td><span style="font-family: 'JetBrains Mono', monospace; color: #94a3b8;">--</span></td>
-              <td><span class="tag tag-blue">● IN TRANSIT</span></td>
-            </tr>
+            <!-- Dynamically populated from /admin/presence/live -->
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- TAB 2: Field Beat Monitor -->
+    <!-- TAB 2: Employee Management (Add & Delete) -->
+    <div id="tab-employees" class="tab-content">
+      <div class="table-card">
+        <div class="table-header">
+          <div>
+            <h2 style="font-size: 18px; font-weight: 700;">Employee Directory & Identity Management</h2>
+            <p style="font-size: 13px; color: #94a3b8;">
+              Manage workforce personnel, onboard new employees with credentials, and deactivate departing staff.
+            </p>
+          </div>
+          <button class="btn btn-approve" onclick="openAddEmployeeModal()">＋ Add New Employee</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Employee Name & Code</th>
+              <th>Email & Phone</th>
+              <th>Department</th>
+              <th>Role</th>
+              <th>Device Binding</th>
+              <th>Current Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="employeesTableBody">
+            <!-- Dynamically populated from /admin/employees -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 3: Task Assignment -->
+    <div id="tab-tasks" class="tab-content">
+      <div class="table-card">
+        <div class="table-header">
+          <div>
+            <h2 style="font-size: 18px; font-weight: 700;">Task Assignment & Real-Time Stopwatch Monitor</h2>
+            <p style="font-size: 13px; color: #94a3b8;">
+              Assign operational duties to field and office staff. Active stopwatches are attendance-gated.
+            </p>
+          </div>
+          <button class="btn btn-approve" onclick="openAssignTaskModal()">＋ Assign New Task</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Task Title & Project</th>
+              <th>Assigned Employee</th>
+              <th>Priority</th>
+              <th>Estimated Effort</th>
+              <th>Live Stopwatch Status</th>
+              <th>Task Status</th>
+            </tr>
+          </thead>
+          <tbody id="tasksTableBody">
+            <!-- Dynamically populated from /admin/tasks -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: Activity Audit Trail -->
+    <div id="tab-activity" class="tab-content">
+      <div class="table-card">
+        <div class="table-header">
+          <div>
+            <h2 style="font-size: 18px; font-weight: 700;">Immutable User Activity Audit Trail</h2>
+            <p style="font-size: 13px; color: #94a3b8;">
+              Chronological log of user actions (Clock-ins, Clock-outs, Task Timers, Customer Site OTPs, Network Used).
+            </p>
+          </div>
+          <button class="btn btn-primary" onclick="fetchActivityLogs()">↻ Refresh Audit Trail</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Employee</th>
+              <th>Activity Event</th>
+              <th>Description & Details</th>
+              <th>Network Verified</th>
+              <th>Location / IP</th>
+            </tr>
+          </thead>
+          <tbody id="activityTableBody">
+            <!-- Dynamically populated from /admin/activity-logs -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 5: Field Beat Monitor -->
     <div id="tab-beat" class="tab-content">
       <div class="table-card">
         <div class="table-header">
@@ -299,7 +443,7 @@
               <th>Visit Status</th>
             </tr>
           </thead>
-          <tbody>
+          <tbody id="beatTableBody">
             <tr>
               <td>
                 <div style="font-weight: 700;">Apollo City Hospital</div>
@@ -332,16 +476,16 @@
               <td><span class="tag tag-blue">CUSTOMER</span></td>
               <td>Priya Sharma</td>
               <td><span style="color: #94a3b8;">--</span></td>
-              <td><span style="color: #94a3b8;">45m Required</span></td>
+              <td><span style="color: #94a3b8;">30m Required</span></td>
               <td><span style="color: #64748b;">Not Requested</span></td>
-              <td><span class="tag tag-blue" style="background: rgba(255,255,255,0.05); color: #94a3b8;">SCHEDULED</span></td>
+              <td><span class="tag tag-gray">SCHEDULED</span></td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
 
-    <!-- TAB 3: Travel Claims & Anti-Fraud -->
+    <!-- TAB 6: Travel Claims & Anti-Fraud -->
     <div id="tab-reimbursements" class="tab-content">
       <div class="table-card">
         <div class="table-header">
@@ -371,7 +515,7 @@
       </div>
     </div>
 
-    <!-- TAB 4: Policy Studio -->
+    <!-- TAB 7: Policy Studio -->
     <div id="tab-policy" class="tab-content">
       <div class="table-card" style="padding: 28px 36px;">
         <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 6px;">Tenant Attendance & Travel Policy Studio</h2>
@@ -411,46 +555,540 @@
     </div>
   </main>
 
+  <!-- MODAL: ADD EMPLOYEE -->
+  <div id="addEmployeeModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 style="font-size: 18px; font-weight: 700; color: #f8fafc;">Add New Employee</h3>
+        <button onclick="closeModal('addEmployeeModal')" style="background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer;">✕</button>
+      </div>
+      <form id="addEmployeeForm" onsubmit="submitAddEmployee(event)">
+        <div class="form-group">
+          <label>Full Name *</label>
+          <input type="text" id="empFullName" class="form-input" required placeholder="e.g. John Doe">
+        </div>
+        <div class="form-group">
+          <label>Email Address *</label>
+          <input type="email" id="empEmail" class="form-input" required placeholder="e.g. john@zuigo.ai">
+        </div>
+        <div class="form-group">
+          <label>Initial Password *</label>
+          <input type="password" id="empPassword" class="form-input" required minlength="6" placeholder="At least 6 characters">
+        </div>
+        <div class="form-group">
+          <label>Employee Code *</label>
+          <input type="text" id="empCode" class="form-input" required placeholder="e.g. EMP-1005">
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>Role</label>
+            <select id="empRole" class="form-select">
+              <option value="EMPLOYEE">EMPLOYEE</option>
+              <option value="MANAGER">MANAGER</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Department</label>
+            <select id="empDept" class="form-select">
+              <option value="Field Operations">Field Operations</option>
+              <option value="Engineering">Engineering</option>
+              <option value="Hospital Relations">Hospital Relations</option>
+              <option value="Customer Success">Customer Success</option>
+              <option value="Operations">Operations</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="text" id="empPhone" class="form-input" placeholder="+919876543210">
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-reject" onclick="closeModal('addEmployeeModal')">Cancel</button>
+          <button type="submit" class="btn btn-approve">Enroll Employee</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: ASSIGN TASK -->
+  <div id="assignTaskModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 style="font-size: 18px; font-weight: 700; color: #f8fafc;">Assign Operational Task</h3>
+        <button onclick="closeModal('assignTaskModal')" style="background: none; border: none; color: #94a3b8; font-size: 20px; cursor: pointer;">✕</button>
+      </div>
+      <form id="assignTaskForm" onsubmit="submitAssignTask(event)">
+        <div class="form-group">
+          <label>Task Title *</label>
+          <input type="text" id="taskTitle" class="form-input" required placeholder="e.g. Hospital Sensor Calibration & Test">
+        </div>
+        <div class="form-group">
+          <label>Assign To Employee *</label>
+          <select id="taskAssignee" class="form-select" required>
+            <!-- Dynamically populated from employees list -->
+          </select>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-group">
+            <label>Priority</label>
+            <select id="taskPriority" class="form-select">
+              <option value="HIGH">HIGH</option>
+              <option value="URGENT">URGENT</option>
+              <option value="MEDIUM" selected>MEDIUM</option>
+              <option value="LOW">LOW</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Estimated Hours</label>
+            <input type="number" step="0.5" id="taskHours" class="form-input" value="3.0">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Description / Special Instructions</label>
+          <textarea id="taskDesc" class="form-input" style="height: 80px; resize: none;" placeholder="Instructions for the assignee..."></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn btn-reject" onclick="closeModal('assignTaskModal')">Cancel</button>
+          <button type="submit" class="btn btn-approve">Assign Task</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script>
     let authToken = null;
     let tenantId = "6c9e4114-81b7-44cd-815b-549487252608";
+    let cachedEmployees = [];
+    let presencePollingInterval = null;
+
+    const API_BASE = "http://127.0.0.1:8000/api/v1";
 
     function switchTab(tabId) {
       document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
       document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
       
-      event.target.classList.add('active');
-      document.getElementById('tab-' + tabId).classList.add('active');
+      const tabBtn = Array.from(document.querySelectorAll('.nav-tab')).find(b => b.getAttribute('onclick')?.includes(tabId));
+      if (tabBtn) tabBtn.classList.add('active');
 
-      if (tabId === 'reimbursements') {
-        fetchClaims();
-      }
+      const content = document.getElementById('tab-' + tabId);
+      if (content) content.classList.add('active');
+
+      if (tabId === 'presence') fetchPresence();
+      if (tabId === 'employees') fetchEmployees();
+      if (tabId === 'tasks') fetchTasks();
+      if (tabId === 'activity') fetchActivityLogs();
+      if (tabId === 'reimbursements') fetchClaims();
+    }
+
+    function openModal(id) {
+      document.getElementById(id).style.display = 'flex';
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).style.display = 'none';
     }
 
     async function loginAdmin() {
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/v1/auth/login", {
+        const res = await fetch(`${API_BASE}/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email: "jayesh@zuigo.ai", password: "password123", tenant_id: "zuigo" })
         });
-        const data = await res.json();
-        authToken = data.access_token;
-        tenantId = data.tenant_id;
-        fetchClaims();
+        if (res.ok) {
+          const data = await res.json();
+          authToken = data.access_token;
+          tenantId = data.tenant_id;
+          document.getElementById('connectionBadge').innerText = "● BACKEND CONNECTED";
+          document.getElementById('connectionBadge').className = "tag tag-green";
+          return true;
+        } else {
+          document.getElementById('connectionBadge').innerText = "○ BACKEND RECONNECTING";
+          document.getElementById('connectionBadge').className = "tag tag-amber";
+          return false;
+        }
       } catch (e) {
-        console.warn("Using demo session:", e);
+        console.warn("Backend connecting...", e);
+        document.getElementById('connectionBadge').innerText = "○ OFFLINE (RETRYING)";
+        document.getElementById('connectionBadge').className = "tag tag-amber";
+        return false;
       }
     }
 
-    async function fetchClaims() {
+    async function apiFetch(endpoint, options = {}) {
       if (!authToken) await loginAdmin();
+      const headers = {
+        "Content-Type": "application/json",
+        ...(authToken ? { "Authorization": `Bearer ${authToken}` } : {}),
+        ...(tenantId ? { "X-Tenant-ID": tenantId } : {}),
+        ...(options.headers || {})
+      };
+      return fetch(`${API_BASE}${endpoint}`, { ...options, headers });
+    }
+
+    // ==========================================
+    // 1. LIVE PRESENCE COMMAND CENTER
+    // ==========================================
+    async function fetchPresence() {
       try {
-        const res = await fetch("http://127.0.0.1:8000/api/v1/admin/travel-reimbursements", {
-          headers: { "Authorization": "Bearer " + authToken, "X-Tenant-ID": tenantId }
+        const res = await apiFetch("/admin/presence/live");
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('statExpected').innerText = data.total_expected || 4;
+          document.getElementById('statPresent').innerText = data.total_present || 0;
+          document.getElementById('statAbsent').innerText = data.total_absent || 0;
+          document.getElementById('statPresenceRate').innerText = `${data.presence_rate_pct || 0}% Organization Presence Rate`;
+          renderPresence(data.employees || []);
+        }
+      } catch (err) {
+        console.error("Presence fetch error:", err);
+      }
+    }
+
+    function renderPresence(employees) {
+      const tbody = document.getElementById('presenceTableBody');
+      tbody.innerHTML = "";
+
+      if (employees.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 32px;">No employee records currently available.</td></tr>`;
+        return;
+      }
+
+      employees.forEach(emp => {
+        // Presence badge
+        let presenceTag = `<span class="tag tag-green">🏢 IN OFFICE</span>`;
+        if (emp.presence_type === 'ON_FIELD_VISIT') presenceTag = `<span class="tag tag-purple">📍 ON FIELD VISIT</span>`;
+        else if (emp.presence_type === 'TRAVEL_SHIFT') presenceTag = `<span class="tag tag-blue">🚗 TRAVEL SHIFT</span>`;
+        else if (emp.presence_type === 'ABSENT') presenceTag = `<span class="tag tag-red">❌ ABSENT</span>`;
+
+        // Network badge
+        let networkBadge = `<span class="tag tag-green">📶 Office Wi-Fi</span>`;
+        if (!emp.is_office_wifi || emp.network_type === 'PERSONAL_CELLULAR') {
+          networkBadge = `<span class="tag tag-amber">📱 Personal Internet</span>`;
+        } else if (emp.network_type === 'OFFLINE') {
+          networkBadge = `<span class="tag tag-gray">Offline</span>`;
+        }
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <div style="font-weight: 700; color: #f8fafc;">${emp.employee_name}</div>
+            <div style="font-size: 12px; color: #64748b; font-family: 'JetBrains Mono', monospace;">${emp.employee_code}</div>
+          </td>
+          <td>
+            <div style="color: #e2e8f0;">${emp.department || 'Field Operations'}</div>
+            <div style="font-size: 12px; color: #94a3b8;">${emp.office_name || 'Cyber City HQ'}</div>
+          </td>
+          <td>${presenceTag}</td>
+          <td>${networkBadge}</td>
+          <td>
+            <span style="font-weight: 600; color: ${emp.current_active_task ? '#60a5fa' : '#64748b'};">
+              ${emp.current_active_task || 'No active task'}
+            </span>
+          </td>
+          <td>
+            <span style="font-family: 'JetBrains Mono', monospace; font-weight: 700; color: ${emp.active_task_elapsed_seconds > 0 ? '#4ade80' : '#64748b'};">
+              ${emp.active_task_elapsed_seconds > 0 ? emp.active_task_elapsed_formatted : '--'}
+            </span>
+          </td>
+          <td>
+            <div style="font-size: 13px; font-family: 'JetBrains Mono', monospace; color: #cbd5e1;">
+              📍 ${emp.live_location || 'Cyber City HQ (28.498, 77.089)'}
+            </div>
+            <div style="font-size: 11px; color: #64748b;">Last seen: ${emp.last_seen_at || 'Just now'}</div>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // ==========================================
+    // 2. EMPLOYEE MANAGEMENT (ADD / DELETE)
+    // ==========================================
+    async function fetchEmployees() {
+      try {
+        const res = await apiFetch("/admin/employees");
+        if (res.ok) {
+          cachedEmployees = await res.json();
+          renderEmployees(cachedEmployees);
+          updateAssigneeDropdown(cachedEmployees);
+        }
+      } catch (err) {
+        console.error("Employee fetch error:", err);
+      }
+    }
+
+    function renderEmployees(list) {
+      const tbody = document.getElementById('employeesTableBody');
+      tbody.innerHTML = "";
+
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: #64748b; padding: 32px;">No employees found.</td></tr>`;
+        return;
+      }
+
+      list.forEach(emp => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <div style="font-weight: 700; color: #f8fafc;">${emp.full_name}</div>
+            <div style="font-size: 12px; color: #64748b; font-family: 'JetBrains Mono', monospace;">${emp.employee_code}</div>
+          </td>
+          <td>
+            <div>${emp.email}</div>
+            <div style="font-size: 12px; color: #64748b;">${emp.phone || '--'}</div>
+          </td>
+          <td><span class="tag tag-blue">${emp.department}</span></td>
+          <td><span class="tag ${emp.role === 'ADMIN' ? 'tag-purple' : 'tag-gray'}">${emp.role}</span></td>
+          <td>
+            <span style="font-size: 12px; font-family: 'JetBrains Mono', monospace; color: ${emp.registered_device_id ? '#34d399' : '#94a3b8'};">
+              ${emp.registered_device_id ? '🔒 ' + emp.registered_device_id : 'Pending Binding'}
+            </span>
+          </td>
+          <td>
+            <span class="tag ${emp.is_active ? 'tag-green' : 'tag-red'}">
+              ${emp.is_active ? 'ACTIVE' : 'DEACTIVATED'}
+            </span>
+          </td>
+          <td>
+            ${emp.is_active ? `
+              <button class="btn btn-reject" onclick="deleteEmployee('${emp.id}', '${emp.full_name}')">
+                Deactivate
+              </button>
+            ` : `<span style="font-size: 12px; color: #64748b;">Inactive</span>`}
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function openAddEmployeeModal() {
+      document.getElementById('addEmployeeForm').reset();
+      openModal('addEmployeeModal');
+    }
+
+    async function submitAddEmployee(event) {
+      event.preventDefault();
+      const payload = {
+        full_name: document.getElementById('empFullName').value.trim(),
+        email: document.getElementById('empEmail').value.trim(),
+        password: document.getElementById('empPassword').value,
+        employee_code: document.getElementById('empCode').value.trim(),
+        role: document.getElementById('empRole').value,
+        department_name: document.getElementById('empDept').value,
+        phone: document.getElementById('empPhone').value.trim() || null,
+      };
+
+      try {
+        const res = await apiFetch("/admin/employees", {
+          method: "POST",
+          body: JSON.stringify(payload)
         });
-        const claims = await res.json();
-        renderClaims(claims);
+
+        if (res.ok) {
+          closeModal('addEmployeeModal');
+          alert("Employee successfully enrolled in database!");
+          fetchEmployees();
+          fetchPresence();
+        } else {
+          const err = await res.json();
+          alert(`Error: ${err.detail || "Failed to create employee"}`);
+        }
+      } catch (err) {
+        alert("Failed to connect to backend server");
+      }
+    }
+
+    async function deleteEmployee(employeeId, employeeName) {
+      if (!confirm(`Are you sure you want to deactivate and remove ${employeeName}? Any active tasks will be safely halted.`)) {
+        return;
+      }
+
+      try {
+        const res = await apiFetch(`/admin/employees/${employeeId}`, {
+          method: "DELETE"
+        });
+
+        if (res.ok) {
+          alert(`Employee ${employeeName} has been deactivated.`);
+          fetchEmployees();
+          fetchPresence();
+        } else {
+          const err = await res.json();
+          alert(`Error: ${err.detail || "Failed to deactivate employee"}`);
+        }
+      } catch (err) {
+        alert("Failed to communicate with backend server");
+      }
+    }
+
+    function updateAssigneeDropdown(employees) {
+      const select = document.getElementById('taskAssignee');
+      select.innerHTML = "";
+      employees.filter(e => e.is_active).forEach(e => {
+        const opt = document.createElement('option');
+        opt.value = e.id;
+        opt.textContent = `${e.full_name} (${e.employee_code} - ${e.department})`;
+        select.appendChild(opt);
+      });
+    }
+
+    // ==========================================
+    // 3. TASK ASSIGNMENT
+    // ==========================================
+    async function fetchTasks() {
+      try {
+        const res = await apiFetch("/admin/tasks");
+        if (res.ok) {
+          const tasks = await res.json();
+          renderTasks(tasks);
+        }
+      } catch (err) {
+        console.error("Tasks fetch error:", err);
+      }
+    }
+
+    function renderTasks(tasks) {
+      const tbody = document.getElementById('tasksTableBody');
+      tbody.innerHTML = "";
+
+      if (tasks.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b; padding: 32px;">No active tasks assigned yet.</td></tr>`;
+        return;
+      }
+
+      tasks.forEach(t => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <div style="font-weight: 700; color: #f8fafc;">${t.title}</div>
+            <div style="font-size: 12px; color: #64748b;">Project: ${t.project_name || 'General Operations'}</div>
+          </td>
+          <td>
+            <div style="font-weight: 600; color: #e2e8f0;">${t.assigned_to_name || 'Unassigned'}</div>
+          </td>
+          <td>
+            <span class="tag ${t.priority === 'URGENT' || t.priority === 'HIGH' ? 'tag-amber' : 'tag-blue'}">
+              ${t.priority}
+            </span>
+          </td>
+          <td><span style="font-family: 'JetBrains Mono', monospace;">${t.estimated_hours || 2.0} hrs</span></td>
+          <td>
+            ${t.active_stopwatch_running ? `
+              <span class="tag tag-green">⏱️ TICKING (${Math.floor(t.active_seconds / 60)}m ${t.active_seconds % 60}s)</span>
+            ` : `<span style="font-size: 12px; color: #64748b;">Idle / Stoppage</span>`}
+          </td>
+          <td><span class="tag tag-blue">${t.status}</span></td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function openAssignTaskModal() {
+      document.getElementById('assignTaskForm').reset();
+      if (cachedEmployees.length === 0) fetchEmployees();
+      openModal('assignTaskModal');
+    }
+
+    async function submitAssignTask(event) {
+      event.preventDefault();
+      const payload = {
+        title: document.getElementById('taskTitle').value.trim(),
+        assigned_to: document.getElementById('taskAssignee').value,
+        priority: document.getElementById('taskPriority').value,
+        estimated_hours: parseFloat(document.getElementById('taskHours').value) || 2.0,
+        description: document.getElementById('taskDesc').value.trim() || null,
+      };
+
+      try {
+        const res = await apiFetch("/admin/tasks", {
+          method: "POST",
+          body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+          closeModal('assignTaskModal');
+          alert("Task successfully assigned and dispatched!");
+          fetchTasks();
+          fetchPresence();
+        } else {
+          const err = await res.json();
+          alert(`Error: ${err.detail || "Failed to assign task"}`);
+        }
+      } catch (err) {
+        alert("Failed to communicate with backend server");
+      }
+    }
+
+    // ==========================================
+    // 4. USER ACTIVITY AUDIT TRAIL
+    // ==========================================
+    async function fetchActivityLogs() {
+      try {
+        const res = await apiFetch("/admin/activity-logs?limit=50");
+        if (res.ok) {
+          const logs = await res.json();
+          renderActivityLogs(logs);
+        }
+      } catch (err) {
+        console.error("Activity logs fetch error:", err);
+      }
+    }
+
+    function renderActivityLogs(logs) {
+      const tbody = document.getElementById('activityTableBody');
+      tbody.innerHTML = "";
+
+      if (logs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #64748b; padding: 32px;">No activity logs recorded yet.</td></tr>`;
+        return;
+      }
+
+      logs.forEach(log => {
+        let typeBadge = `<span class="tag tag-blue">${log.activity_type}</span>`;
+        if (log.activity_type === 'CLOCK_IN') typeBadge = `<span class="tag tag-green">CLOCK IN</span>`;
+        else if (log.activity_type === 'CLOCK_OUT') typeBadge = `<span class="tag tag-amber">CLOCK OUT</span>`;
+        else if (log.activity_type.includes('FIELD')) typeBadge = `<span class="tag tag-purple">${log.activity_type}</span>`;
+        else if (log.activity_type.includes('DELETE')) typeBadge = `<span class="tag tag-red">${log.activity_type}</span>`;
+
+        let netBadge = `<span class="tag tag-green">📶 Office Wi-Fi</span>`;
+        if (!log.is_office_wifi || log.network_type === 'PERSONAL_CELLULAR') {
+          netBadge = `<span class="tag tag-amber">📱 Personal Internet</span>`;
+        }
+
+        const locStr = (log.location_latitude && log.location_longitude) 
+          ? `📍 ${log.location_latitude.toFixed(4)}, ${log.location_longitude.toFixed(4)}` 
+          : (log.ip_address || '127.0.0.1');
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <div style="font-size: 13px; font-weight: 600; color: #f8fafc;">${log.created_at_formatted || log.created_at}</div>
+          </td>
+          <td>
+            <div style="font-weight: 700;">${log.employee_name}</div>
+            <div style="font-size: 11px; color: #64748b; font-family: 'JetBrains Mono', monospace;">${log.employee_code}</div>
+          </td>
+          <td>${typeBadge}</td>
+          <td><div style="color: #cbd5e1; max-width: 320px;">${log.description}</div></td>
+          <td>${netBadge}</td>
+          <td><div style="font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #94a3b8;">${locStr}</div></td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    // ==========================================
+    // 5. TRAVEL CLAIMS
+    // ==========================================
+    async function fetchClaims() {
+      try {
+        const res = await apiFetch("/admin/travel-reimbursements");
+        if (res.ok) {
+          const claims = await res.json();
+          renderClaims(claims);
+        }
       } catch (e) {
         console.error("Error loading claims:", e);
       }
@@ -493,25 +1131,35 @@
     }
 
     async function approveClaim(id) {
-      await fetch(`http://127.0.0.1:8000/api/v1/admin/travel-reimbursements/${id}/action`, {
+      await apiFetch(`/admin/travel-reimbursements/${id}/action`, {
         method: "POST",
-        headers: { "Authorization": "Bearer " + authToken, "X-Tenant-ID": tenantId, "Content-Type": "application/json" },
         body: JSON.stringify({ action: "APPROVE" })
       });
       fetchClaims();
     }
 
     async function rejectClaim(id) {
-      await fetch(`http://127.0.0.1:8000/api/v1/admin/travel-reimbursements/${id}/action`, {
+      await apiFetch(`/admin/travel-reimbursements/${id}/action`, {
         method: "POST",
-        headers: { "Authorization": "Bearer " + authToken, "X-Tenant-ID": tenantId, "Content-Type": "application/json" },
         body: JSON.stringify({ action: "REJECT" })
       });
       fetchClaims();
     }
 
-    // Initial load
-    loginAdmin();
+    // Auto-polling for real-time presence
+    async function init() {
+      await loginAdmin();
+      fetchPresence();
+      fetchEmployees();
+      presencePollingInterval = setInterval(() => {
+        const activeTab = document.querySelector('.nav-tab.active')?.getAttribute('onclick');
+        if (activeTab && activeTab.includes('presence')) {
+          fetchPresence();
+        }
+      }, 3000);
+    }
+
+    init();
   </script>
 </body>
 </html>

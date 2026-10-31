@@ -11,6 +11,7 @@ class NetworkAudit(BaseModel):
     """Network presence audit parameters."""
     wifi_bssid: str = Field(..., description="BSSID (MAC address) of the connected office router")
     wifi_ssid: Optional[str] = Field(None, description="SSID name of the Wi-Fi network")
+    network_type: str = Field(default="OFFICE_WIFI", description="OFFICE_WIFI, PERSONAL_CELLULAR, or EXTERNAL_WIFI")
 
 
 class LocationAudit(BaseModel):
@@ -19,6 +20,16 @@ class LocationAudit(BaseModel):
     longitude: float = Field(..., ge=-180.0, le=180.0)
     accuracy_meters: Optional[float] = Field(None)
     is_mock: bool = Field(default=False, description="OS flag detecting mock/fake location provider")
+
+
+class LocationPingRequest(BaseModel):
+    """Live telemetry heartbeat ping from mobile device."""
+    latitude: float = Field(..., ge=-90.0, le=90.0)
+    longitude: float = Field(..., ge=-180.0, le=180.0)
+    accuracy_meters: Optional[float] = None
+    is_mock: bool = False
+    network_type: str = Field(default="OFFICE_WIFI", description="OFFICE_WIFI, PERSONAL_CELLULAR, or EXTERNAL_WIFI")
+    wifi_bssid: Optional[str] = None
 
 
 class FaceVerificationAudit(BaseModel):
@@ -34,6 +45,7 @@ class ClockInRequest(BaseModel):
     location: LocationAudit
     face_verification: FaceVerificationAudit
     device_id: str = Field(..., description="Hardware device UUID matching registered device")
+    selfie_image_base64: Optional[str] = Field(None, description="Optional front-camera selfie snapshot")
 
 
 class ClockInResponse(BaseModel):
@@ -43,13 +55,18 @@ class ClockInResponse(BaseModel):
     clock_in_time: str
     office_name: str
     similarity_score: float
+    network_type: str = "OFFICE_WIFI"
+    is_office_wifi: bool = True
     message: str
 
 
 class ClockOutRequest(BaseModel):
-    """Clock out submission."""
+    """Clock out submission with optional selfie proof and network audit."""
     attendance_id: str
     location: LocationAudit
+    network_audit: Optional[NetworkAudit] = None
+    selfie_image_base64: Optional[str] = None
+    face_liveness_passed: Optional[bool] = None
 
 
 class ClockOutResponse(BaseModel):
@@ -58,4 +75,6 @@ class ClockOutResponse(BaseModel):
     clock_out_time: str
     total_shift_hours: float
     active_tasks_stopped: int
+    network_type: str = "OFFICE_WIFI"
+    is_office_wifi: bool = True
     message: str

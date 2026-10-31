@@ -43,13 +43,20 @@ class AttendanceRecord(Base):
     )
     clock_in_location = mapped_column(Geometry(geometry_type="POINT", srid=4326), nullable=False)
     clock_in_bssid: Mapped[str] = mapped_column(String(50), nullable=False)
+    clock_in_network_type: Mapped[str] = mapped_column(String(30), default="OFFICE_WIFI", nullable=False)
+    clock_in_is_office_wifi: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     clock_in_client_ip: Mapped[str] = mapped_column(INET, nullable=False)
     clock_in_device_id: Mapped[str] = mapped_column(String(255), nullable=False)
     clock_in_face_similarity_score: Mapped[Optional[float]] = mapped_column(Numeric(5, 4), nullable=True)
+    clock_in_selfie_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Clock-out Audit Details
     clock_out_location = mapped_column(Geometry(geometry_type="POINT", srid=4326), nullable=True)
     clock_out_verification_method: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    clock_out_network_type: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)
+    clock_out_is_office_wifi: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    clock_out_bssid: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    clock_out_selfie_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # Attendance Status: PRESENT, LATE, HALF_DAY, OVERTIME
     status: Mapped[str] = mapped_column(String(30), default="PRESENT", nullable=False)

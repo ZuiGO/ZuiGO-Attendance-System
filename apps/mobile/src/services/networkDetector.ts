@@ -6,8 +6,8 @@ import * as Location from 'expo-location';
 import * as Network from 'expo-network';
 
 export interface LocationSnapshot {
-  latitude: float;
-  longitude: float;
+  latitude: number;
+  longitude: number;
   accuracy: number | null;
   isMock: boolean;
 }

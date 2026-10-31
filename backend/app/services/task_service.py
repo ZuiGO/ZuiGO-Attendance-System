@@ -18,6 +18,7 @@ from app.schemas.task import (
     TaskResponse,
     TimeEntryResponse,
 )
+from app.services.activity_service import ActivityService
 
 
 def format_seconds(seconds: int) -> str:
@@ -34,6 +35,7 @@ class TaskTrackingService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.activity_service = ActivityService(db=db)
 
     async def create_project(self, tenant_id: uuid.UUID, data: ProjectCreate) -> ProjectResponse:
         """Creates a new project for the tenant."""
@@ -142,6 +144,15 @@ class TaskTrackingService:
         await self.db.commit()
         await self.db.refresh(new_entry)
 
+        # Log Activity
+        await self.activity_service.log_activity(
+            tenant_id=tenant_id,
+            employee_id=employee_id,
+            activity_type="TASK_STARTED",
+            description=f"Started working on task '{task.title}'",
+            metadata_json={"task_id": str(data.task_id), "task_title": task.title},
+        )
+
         response = TimeEntryResponse(
             id=str(new_entry.id),
             task_id=str(new_entry.task_id),
@@ -184,6 +195,17 @@ class TaskTrackingService:
         duration_sec = int((now - entry.start_time).total_seconds())
 
         await self.db.commit()
+
+        # Log Activity
+        task_info = await self.db.get(Task, entry.task_id)
+        task_name = task_info.title if task_info else "Task"
+        await self.activity_service.log_activity(
+            tenant_id=tenant_id,
+            employee_id=employee_id,
+            activity_type="TASK_STOPPED",
+            description=f"Stopped working on '{task_name}' (Duration: {format_seconds(duration_sec)})",
+            metadata_json={"task_id": str(entry.task_id), "duration_seconds": duration_sec},
+        )
 
         response = TimeEntryResponse(
             id=str(entry.id),

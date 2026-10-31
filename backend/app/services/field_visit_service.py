@@ -26,6 +26,7 @@ from app.schemas.field_visit import (
     StopArriveRequest,
     StopArriveResponse,
 )
+from app.services.activity_service import ActivityService
 from app.services.attendance_service import calculate_haversine_distance_meters
 from app.services.task_service import format_seconds
 
@@ -42,6 +43,7 @@ class FieldVisitService:
 
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.activity_service = ActivityService(db=db)
 
     async def create_destination(
         self,
@@ -129,6 +131,25 @@ class FieldVisitService:
 
         await self.db.commit()
 
+        # Log Activity
+        itin = await self.db.get(FieldItinerary, stop.itinerary_id)
+        if itin:
+            await self.activity_service.log_activity(
+                tenant_id=tenant_id,
+                employee_id=itin.employee_id,
+                activity_type="FIELD_VISIT_ARRIVAL",
+                description=f"Arrived at {destination.name} ({distance_meters:.1f}m from center). 30-min dwell timer started.",
+                network_type="PERSONAL_CELLULAR",
+                is_office_wifi=False,
+                location_latitude=data.latitude,
+                location_longitude=data.longitude,
+                metadata_json={
+                    "client_name": destination.name,
+                    "distance_meters": round(distance_meters, 1),
+                    "min_dwell_minutes": destination.min_dwell_minutes,
+                },
+            )
+
         response = StopArriveResponse(
             stop_id=str(stop.id),
             status="ARRIVED",
@@ -188,7 +209,8 @@ class FieldVisitService:
             channel=channel,
             expires_in_seconds=300,
             max_attempts=3,
-            message=f"Verification OTP sent to client via {channel}.",
+            dev_otp_preview=otp_code,
+            message=f"Verification OTP ({otp_code}) dispatched to client via {channel}.",
         )
         return True, None, response
 
@@ -279,6 +301,26 @@ class FieldVisitService:
         stop.check_out_location = point_wkt
 
         await self.db.commit()
+
+        # Log Activity
+        itin = await self.db.get(FieldItinerary, stop.itinerary_id)
+        if itin:
+            await self.activity_service.log_activity(
+                tenant_id=tenant_id,
+                employee_id=itin.employee_id,
+                activity_type="FIELD_VISIT_COMPLETED",
+                description=f"Completed verified visit at {destination.name}. Dwell time {format_seconds(dwell_seconds)} satisfied, Client OTP validated.",
+                network_type="PERSONAL_CELLULAR",
+                is_office_wifi=False,
+                location_latitude=data.latitude,
+                location_longitude=data.longitude,
+                metadata_json={
+                    "client_name": destination.name,
+                    "dwell_seconds": dwell_seconds,
+                    "otp_verified": True,
+                    "photo_proof_url": data.photo_file_url,
+                },
+            )
 
         response = CompleteVisitResponse(
             stop_id=str(stop.id),

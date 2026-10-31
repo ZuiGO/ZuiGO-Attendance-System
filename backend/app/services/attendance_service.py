@@ -10,9 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.attendance import AttendanceRecord
 from app.models.employee import Employee
+from app.models.location import LocationBreadcrumb
 from app.models.tenant import Office
 from app.models.task import TaskTimeEntry
-from app.schemas.attendance import ClockInRequest, ClockInResponse, ClockOutRequest, ClockOutResponse
+from app.schemas.attendance import ClockInRequest, ClockInResponse, ClockOutRequest, ClockOutResponse, LocationPingRequest
+from app.services.activity_service import ActivityService
 from app.services.qr_service import DynamicQRService
 
 
@@ -50,6 +52,7 @@ class AttendanceVerificationService:
     def __init__(self, db: AsyncSession, qr_service: DynamicQRService):
         self.db = db
         self.qr_service = qr_service
+        self.activity_service = ActivityService(db=db)
 
     async def verify_and_clock_in(
         self,
@@ -101,12 +104,25 @@ class AttendanceVerificationService:
         if not office:
             return False, "OFFICE_NOT_FOUND", None
 
-        # Pillar 4: Wi-Fi BSSID Validation (Network Geofencing)
+        # Pillar 4: Wi-Fi BSSID Validation (Network Geofencing) & Office Wi-Fi vs Personal Data
+        client_bssid = request.network_audit.wifi_bssid.lower().strip() if request.network_audit.wifi_bssid else ""
+        network_type = request.network_audit.network_type or "OFFICE_WIFI"
+        is_office_wifi = False
+
         if office.allowed_bssid_list:
-            client_bssid = request.network_audit.wifi_bssid.lower().strip()
             allowed_bssids = [b.lower().strip() for b in office.allowed_bssid_list]
-            if client_bssid not in allowed_bssids:
-                return False, f"NETWORK_MISMATCH: Connected BSSID ({client_bssid}) not authorized for {office.name}", None
+            if client_bssid in allowed_bssids:
+                is_office_wifi = True
+                network_type = "OFFICE_WIFI"
+            else:
+                if network_type == "OFFICE_WIFI":
+                    return False, f"NETWORK_MISMATCH: Connected BSSID ({client_bssid}) not authorized for {office.name}", None
+                else:
+                    is_office_wifi = False
+                    network_type = "PERSONAL_CELLULAR"
+        else:
+            is_office_wifi = True
+            network_type = "OFFICE_WIFI"
 
         # Pillar 5: Facial Liveness & AI Embedding Match
         if not request.face_verification.liveness_passed:
@@ -147,12 +163,41 @@ class AttendanceVerificationService:
             clock_in_verification_method="DYNAMIC_QR_FACE_WIFI",
             clock_in_location=point_wkt,
             clock_in_bssid=request.network_audit.wifi_bssid,
+            clock_in_network_type=network_type,
+            clock_in_is_office_wifi=is_office_wifi,
             clock_in_client_ip=client_ip,
             clock_in_device_id=request.device_id,
             clock_in_face_similarity_score=similarity_score,
+            clock_in_selfie_url=request.selfie_image_base64,
             status="PRESENT",
         )
         self.db.add(record)
+
+        # Update employee live location & presence status
+        employee.last_known_latitude = request.location.latitude
+        employee.last_known_longitude = request.location.longitude
+        employee.last_seen_at = now
+        employee.current_network_type = network_type
+
+        # Log Activity
+        await self.activity_service.log_activity(
+            tenant_id=tenant_id,
+            employee_id=employee_id,
+            activity_type="CLOCK_IN",
+            description=f"Clocked in at {office.name} via {'Office Wi-Fi' if is_office_wifi else 'Personal Mobile Internet'}",
+            network_type=network_type,
+            is_office_wifi=is_office_wifi,
+            ip_address=client_ip,
+            location_latitude=request.location.latitude,
+            location_longitude=request.location.longitude,
+            metadata_json={
+                "office_name": office.name,
+                "bssid": request.network_audit.wifi_bssid,
+                "similarity_score": round(similarity_score, 4),
+                "has_selfie": bool(request.selfie_image_base64),
+            },
+        )
+
         await self.db.commit()
         await self.db.refresh(record)
 
@@ -162,7 +207,9 @@ class AttendanceVerificationService:
             clock_in_time=now.isoformat(),
             office_name=office.name,
             similarity_score=round(similarity_score, 4),
-            message=f"Physical presence verified at {office.name}. Clocked in successfully.",
+            network_type=network_type,
+            is_office_wifi=is_office_wifi,
+            message=f"Physical presence verified at {office.name} via {'Office Wi-Fi' if is_office_wifi else 'Personal Mobile Internet'}. Clocked in successfully.",
         )
         return True, None, response
 
@@ -193,6 +240,30 @@ class AttendanceVerificationService:
         record.clock_out_location = point_wkt
         record.clock_out_verification_method = "MOBILE_APP"
 
+        # Determine network type & Wi-Fi validity for clock-out
+        out_is_office_wifi = False
+        out_network_type = "OFFICE_WIFI"
+        out_bssid = None
+        if request.network_audit:
+            out_bssid = request.network_audit.wifi_bssid
+            out_network_type = request.network_audit.network_type or "OFFICE_WIFI"
+            client_bssid = out_bssid.lower().strip() if out_bssid else ""
+            office = await self.db.get(Office, record.office_id)
+            if office and office.allowed_bssid_list:
+                allowed_bssids = [b.lower().strip() for b in office.allowed_bssid_list]
+                out_is_office_wifi = client_bssid in allowed_bssids
+            else:
+                out_is_office_wifi = (out_network_type == "OFFICE_WIFI")
+        else:
+            out_is_office_wifi = record.clock_in_is_office_wifi
+            out_network_type = record.clock_in_network_type
+
+        record.clock_out_network_type = out_network_type
+        record.clock_out_is_office_wifi = out_is_office_wifi
+        record.clock_out_bssid = out_bssid
+        if request.selfie_image_base64:
+            record.clock_out_selfie_url = request.selfie_image_base64
+
         # Calculate total shift duration in hours
         duration_seconds = (now - record.clock_in).total_seconds()
         shift_hours = round(duration_seconds / 3600.0, 2)
@@ -210,6 +281,31 @@ class AttendanceVerificationService:
             entry.end_time = now
             stopped_count += 1
 
+        # Update employee telemetry
+        emp = await self.db.get(Employee, employee_id)
+        if emp:
+            emp.last_known_latitude = request.location.latitude
+            emp.last_known_longitude = request.location.longitude
+            emp.last_seen_at = now
+            emp.current_network_type = out_network_type
+
+        # Log Activity
+        await self.activity_service.log_activity(
+            tenant_id=tenant_id,
+            employee_id=employee_id,
+            activity_type="CLOCK_OUT",
+            description=f"Clocked out ({shift_hours}h shift) via {'Office Wi-Fi' if out_is_office_wifi else 'Personal Mobile Internet'}",
+            network_type=out_network_type,
+            is_office_wifi=out_is_office_wifi,
+            location_latitude=request.location.latitude,
+            location_longitude=request.location.longitude,
+            metadata_json={
+                "shift_hours": shift_hours,
+                "tasks_closed": stopped_count,
+                "has_selfie": bool(request.selfie_image_base64),
+            },
+        )
+
         await self.db.commit()
 
         response = ClockOutResponse(
@@ -217,6 +313,46 @@ class AttendanceVerificationService:
             clock_out_time=now.isoformat(),
             total_shift_hours=shift_hours,
             active_tasks_stopped=stopped_count,
-            message="Clock-out confirmed. Active task timers automatically closed.",
+            network_type=out_network_type,
+            is_office_wifi=out_is_office_wifi,
+            message=f"Clock-out confirmed via {'Office Wi-Fi' if out_is_office_wifi else 'Personal Mobile Internet'}. Active task timers closed.",
         )
         return True, None, response
+
+    async def ping_location(
+        self,
+        employee_id: uuid.UUID,
+        tenant_id: uuid.UUID,
+        request: LocationPingRequest,
+    ) -> dict:
+        """Stores a telemetry location breadcrumb and updates real-time presence coordinates."""
+        now = datetime.now(timezone.utc)
+        point_wkt = f"SRID=4326;POINT({request.longitude} {request.latitude})"
+        breadcrumb = LocationBreadcrumb(
+            tenant_id=tenant_id,
+            employee_id=employee_id,
+            recorded_at=now,
+            coordinates=point_wkt,
+            accuracy_meters=request.accuracy_meters,
+            is_mock=request.is_mock,
+            activity_type="STATIONARY",
+            created_at=now,
+        )
+        self.db.add(breadcrumb)
+
+        # Update employee live location
+        emp = await self.db.get(Employee, employee_id)
+        if emp:
+            emp.last_known_latitude = request.latitude
+            emp.last_known_longitude = request.longitude
+            emp.last_seen_at = now
+            emp.current_network_type = request.network_type
+
+        await self.db.commit()
+        return {
+            "status": "RECORDED",
+            "recorded_at": now.isoformat(),
+            "latitude": request.latitude,
+            "longitude": request.longitude,
+            "network_type": request.network_type,
+        }

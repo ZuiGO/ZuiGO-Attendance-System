@@ -75,6 +75,13 @@ class Employee(Base):
     baseline_face_photo_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    
+    # Real-Time Telemetry & Presence State
+    last_known_latitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    last_known_longitude: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    last_seen_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    current_network_type: Mapped[Optional[str]] = mapped_column(String(30), nullable=True)  # OFFICE_WIFI, PERSONAL_CELLULAR, OFFLINE
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False
     )

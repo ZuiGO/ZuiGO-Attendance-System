@@ -68,6 +68,7 @@ class RequestOtpResponse(BaseModel):
     channel: str
     expires_in_seconds: int
     max_attempts: int
+    dev_otp_preview: Optional[str] = None
     message: str
 
 

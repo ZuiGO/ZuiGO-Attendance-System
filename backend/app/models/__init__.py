@@ -14,6 +14,7 @@ from app.models.field_visit import (
 )
 from app.models.travel import Vehicle, TravelLog, TravelLeg, TravelExpenseReceipt
 from app.models.location import LocationBreadcrumb
+from app.models.activity import UserActivityLog
 
 __all__ = [
     "Base",
@@ -35,4 +36,5 @@ __all__ = [
     "TravelLeg",
     "TravelExpenseReceipt",
     "LocationBreadcrumb",
+    "UserActivityLog",
 ]

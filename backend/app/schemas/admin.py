@@ -17,7 +17,80 @@ class LiveEmployeePresence(BaseModel):
     current_active_task: Optional[str] = None
     active_task_elapsed_seconds: int = 0
     active_task_elapsed_formatted: str = "0m"
-    status: str = "WORKING"  # WORKING, IDLE, ON_BREAK
+    status: str = "WORKING"  # WORKING, IDLE, ON_BREAK, ABSENT
+    presence_type: str = "IN_OFFICE"  # IN_OFFICE, ON_FIELD_VISIT, TRAVEL_SHIFT, ABSENT
+    network_type: str = "OFFICE_WIFI"  # OFFICE_WIFI, PERSONAL_CELLULAR, OFFLINE
+    is_office_wifi: bool = True
+    live_location: Optional[str] = None
+    last_seen_at: Optional[str] = None
+
+
+class CreateEmployeeRequest(BaseModel):
+    full_name: str = Field(..., min_length=2, max_length=255)
+    email: str = Field(..., description="Unique employee login email")
+    password: str = Field(..., min_length=6, description="Initial password for login")
+    employee_code: str = Field(..., description="Unique employee alphanumeric code e.g. EMP-1005")
+    role: str = Field(default="EMPLOYEE", description="ADMIN, MANAGER, or EMPLOYEE")
+    department_name: Optional[str] = Field("Field Operations")
+    phone: Optional[str] = None
+    office_id: Optional[str] = None
+
+
+class EmployeeItem(BaseModel):
+    id: str
+    employee_code: str
+    full_name: str
+    email: str
+    role: str
+    department: str
+    office_name: str
+    phone: Optional[str] = None
+    is_active: bool
+    registered_device_id: Optional[str] = None
+    last_seen_at: Optional[str] = None
+    current_network_type: Optional[str] = None
+    created_at: str
+
+
+class AssignTaskRequest(BaseModel):
+    title: str = Field(..., min_length=3, max_length=255)
+    description: Optional[str] = None
+    assigned_to: str = Field(..., description="Employee UUID")
+    priority: str = Field(default="MEDIUM", description="LOW, MEDIUM, HIGH, URGENT")
+    estimated_hours: Optional[float] = None
+    project_id: Optional[str] = None
+
+
+class AdminTaskItem(BaseModel):
+    id: str
+    title: str
+    description: Optional[str] = None
+    assigned_to_id: Optional[str] = None
+    assigned_to_name: Optional[str] = None
+    priority: str
+    status: str
+    estimated_hours: Optional[float] = None
+    project_name: str
+    created_at: str
+    active_stopwatch_running: bool = False
+    active_seconds: int = 0
+
+
+class UserActivityLogItem(BaseModel):
+    id: str
+    employee_id: str
+    employee_name: str
+    employee_code: str
+    activity_type: str
+    description: str
+    network_type: str
+    is_office_wifi: bool
+    ip_address: Optional[str] = None
+    location_latitude: Optional[float] = None
+    location_longitude: Optional[float] = None
+    metadata: Dict = {}
+    created_at: str
+    created_at_formatted: str
 
 
 class LivePresenceBoardResponse(BaseModel):

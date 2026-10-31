@@ -1,4 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import { apiRequest } from '../services/api';
+import { captureLocationWithAntiSpoof, captureNetworkDetails } from '../services/networkDetector';
 
 export interface ActiveTaskTimer {
   entryId: string;
@@ -19,7 +21,10 @@ interface AttendanceContextType {
   attendanceId: string | null;
   clockInTime: string | null;
   officeName: string | null;
-  setClockInSuccess: (id: string, time: string, office: string) => void;
+  networkType: string;
+  isOfficeWifi: boolean;
+  lastPingTime: Date | null;
+  setClockInSuccess: (id: string, time: string, office: string, netType?: string, isWifi?: boolean) => void;
   setClockOutSuccess: () => void;
   
   // Task Timer State
@@ -31,6 +36,9 @@ interface AttendanceContextType {
   activeTravelShift: ActiveTravelShift | null;
   startTravelShift: (logId: string, mode: string, odoKm?: number) => void;
   endTravelShift: () => void;
+
+  // Live Location Telemetry Heartbeat
+  sendLocationPing: (overrideNetType?: string) => Promise<void>;
 }
 
 const AttendanceContext = createContext<AttendanceContextType>({} as AttendanceContextType);
@@ -40,15 +48,28 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [attendanceId, setAttendanceId] = useState<string | null>(null);
   const [clockInTime, setClockInTime] = useState<string | null>(null);
   const [officeName, setOfficeName] = useState<string | null>(null);
+  const [networkType, setNetworkType] = useState<string>('OFFICE_WIFI');
+  const [isOfficeWifi, setIsOfficeWifi] = useState<boolean>(true);
+  const [lastPingTime, setLastPingTime] = useState<Date | null>(null);
 
   const [activeTimer, setActiveTimer] = useState<ActiveTaskTimer | null>(null);
   const [activeTravelShift, setActiveTravelShift] = useState<ActiveTravelShift | null>(null);
 
-  const setClockInSuccess = (id: string, time: string, office: string) => {
+  const pingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const setClockInSuccess = (
+    id: string,
+    time: string,
+    office: string,
+    netType: string = 'OFFICE_WIFI',
+    isWifi: boolean = true
+  ) => {
     setIsClockedIn(true);
     setAttendanceId(id);
     setClockInTime(time);
     setOfficeName(office);
+    setNetworkType(netType);
+    setIsOfficeWifi(isWifi);
   };
 
   const setClockOutSuccess = () => {
@@ -85,12 +106,61 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setActiveTravelShift(null);
   };
 
+  // Live Location Telemetry Heartbeat Ping to Backend & Admin Panel
+  const sendLocationPing = async (overrideNetType?: string) => {
+    try {
+      const loc = await captureLocationWithAntiSpoof();
+      const net = await captureNetworkDetails();
+      const effectiveNet = overrideNetType || networkType;
+
+      await apiRequest('/attendance/ping-location', {
+        method: 'POST',
+        body: JSON.stringify({
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          accuracy_meters: loc.accuracy || 12.0,
+          is_mock: loc.isMock,
+          network_type: effectiveNet,
+          wifi_bssid: effectiveNet === 'OFFICE_WIFI' ? net.wifiBssid : null,
+        }),
+      });
+
+      setLastPingTime(new Date());
+    } catch (err) {
+      // Telemetry heartbeat fails gracefully if offline
+    }
+  };
+
+  // Periodic Telemetry Heartbeat while Clocked In (Every 25 seconds)
+  useEffect(() => {
+    if (isClockedIn) {
+      sendLocationPing();
+      pingIntervalRef.current = setInterval(() => {
+        sendLocationPing();
+      }, 25000);
+    } else {
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+        pingIntervalRef.current = null;
+      }
+    }
+
+    return () => {
+      if (pingIntervalRef.current) {
+        clearInterval(pingIntervalRef.current);
+      }
+    };
+  }, [isClockedIn, networkType]);
+
   return (
     <AttendanceContext.Provider value={{
       isClockedIn,
       attendanceId,
       clockInTime,
       officeName,
+      networkType,
+      isOfficeWifi,
+      lastPingTime,
       setClockInSuccess,
       setClockOutSuccess,
       activeTimer,
@@ -99,6 +169,7 @@ export const AttendanceProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       activeTravelShift,
       startTravelShift,
       endTravelShift,
+      sendLocationPing,
     }}>
       {children}
     </AttendanceContext.Provider>

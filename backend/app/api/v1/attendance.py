@@ -11,7 +11,7 @@ from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.redis import get_redis_client
 from app.models.attendance import AttendanceRecord
-from app.schemas.attendance import ClockInRequest, ClockInResponse, ClockOutRequest, ClockOutResponse
+from app.schemas.attendance import ClockInRequest, ClockInResponse, ClockOutRequest, ClockOutResponse, LocationPingRequest
 from app.services.attendance_service import AttendanceVerificationService
 from app.services.qr_service import DynamicQRService
 
@@ -87,3 +87,22 @@ async def clock_out(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_msg)
 
     return response
+
+
+@router.post("/ping-location")
+async def ping_location(
+    request: LocationPingRequest,
+    current_user: Annotated[dict, Depends(get_current_user)],
+    attendance_service: Annotated[AttendanceVerificationService, Depends(get_attendance_service)],
+):
+    """
+    Heartbeat location telemetry ping from active mobile app.
+    Streams live GPS coordinates, battery level, network type to database and admin presence board.
+    """
+    employee_id = uuid.UUID(current_user["sub"])
+    tenant_id = uuid.UUID(current_user["tenant_id"])
+    return await attendance_service.ping_location(
+        employee_id=employee_id,
+        tenant_id=tenant_id,
+        request=request,
+    )
